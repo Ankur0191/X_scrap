@@ -1,0 +1,12 @@
+node_modules/
+.local/
+playwright/.auth/
+data/inbox/*
+!data/inbox/.gitkeep
+data/output/*
+!data/output/.gitkeep
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
