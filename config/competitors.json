@@ -1,0 +1,10 @@
+{
+  "competitors": [
+    {
+      "username": "example_competitor",
+      "displayName": "Example Competitor",
+      "enabled": false,
+      "tags": ["replace-me"]
+    }
+  ]
+}
