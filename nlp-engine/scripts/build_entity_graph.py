@@ -184,11 +184,7 @@ def main() -> int:
                 author_id = add_node(nodes, "x_account", author, evidence_id, evidence_url, observed_at)
                 add_edge(edges, "authored_by", post_id, author_id, evidence_id, evidence_url)
             if tracked:
-                tracked_id = add_node(nodes, "x_account", tracked, evidence_id, evidence_url, observed_at)
-                if tracked != author and source.get("isRepost"):
-                    add_edge(edges, "reposted_by", post_id, tracked_id, evidence_id, evidence_url)
-                elif tracked == author:
-                    add_edge(edges, "published_by", post_id, tracked_id, evidence_id, evidence_url)
+                add_node(nodes, "x_account", tracked, evidence_id, evidence_url, observed_at)
 
             # GLiNER named entities and spans.
             entity_surface_ids: dict[tuple[str, str], str] = {}
