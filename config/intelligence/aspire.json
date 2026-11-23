@@ -110,5 +110,23 @@
     "refund_dispute_and_chargeback",
     "renewal_and_retention",
     "unknown"
+  ],
+  "customerSegments": [
+    "mass_market_cardholder",
+    "affluent_cardholder",
+    "high_net_worth_cardholder",
+    "ultra_high_net_worth_cardholder",
+    "corporate_cardholder",
+    "small_business_customer",
+    "frequent_traveler",
+    "frequent_flyer",
+    "premium_banking_customer",
+    "wealth_management_customer",
+    "merchant_partner",
+    "airline_or_hotel_partner",
+    "bank_or_issuer_partner",
+    "concierge_member",
+    "employee_or_corporate_program_member",
+    "unknown"
   ]
 }
