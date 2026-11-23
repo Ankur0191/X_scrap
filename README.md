@@ -99,6 +99,7 @@ Conversation outputs:
 - `thread-runs.jsonl`
 - `conversation-365d.jsonl`
 - `conversation-manifest.json`
+- `engagement-snapshots.jsonl` — timestamped visible engagement observations
 
 ## 5. Continuous Windows monitoring
 
@@ -117,7 +118,7 @@ Keep the PC awake and the user session active during collection. The log is writ
 npm run audit:data
 ```
 
-The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution.
+The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution. The recurring cycle audits the merged conversation file.
 
 ## 7. Local GLiNER2.5 extraction
 
