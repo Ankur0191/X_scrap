@@ -42,8 +42,8 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   const socialContext = await social.count() && await social.isVisible()
     ? (await social.innerText()).trim()
     : "";
-  const isRepost = /reposted/i.test(socialContext) &&
-    socialContext.toLowerCase().includes(trackedCompetitor.toLowerCase());
+  // This function is called only while viewing the tracked profile's own timeline.
+  const isRepost = /reposted/i.test(socialContext);
 
   if (authorUsername !== trackedCompetitor.toLowerCase() && !isRepost) return null;
 
@@ -59,11 +59,11 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
 
   const fullCardText = await card.innerText();
   const metrics = { replies: null, reposts: null, likes: null, views: null };
-  const buttons = card.locator("button");
-  for (let index = 0; index < await buttons.count(); index += 1) {
-    const button = buttons.nth(index);
-    if (!(await button.isVisible())) continue;
-    const label = (await button.getAttribute("aria-label")) || (await button.getAttribute("title")) || "";
+  const metricElements = card.locator('button[aria-label], a[aria-label], button[title], a[title]');
+  for (let index = 0; index < await metricElements.count(); index += 1) {
+    const element = metricElements.nth(index);
+    if (!(await element.isVisible())) continue;
+    const label = (await element.getAttribute("aria-label")) || (await element.getAttribute("title")) || "";
     const metric = metricFromLabel(label);
     if (metric) metrics[metric[0]] = metric[1];
   }
