@@ -44,7 +44,10 @@ for (const post of readJsonl(postsPath)) {
 }
 
 let acceptedThreadRows = 0;
-let duplicateThreadRows = 0;
+let acceptedExternalPublicReplies = 0;
+let acceptedCompetitorAuthoredReplies = 0;
+let mergedExternalPublicReplies = 0;
+let mergedCompetitorAuthoredReplies = 0;
 for (const reply of readJsonl(repliesPath)) {
   const date = new Date(reply.createdAt);
   if (Number.isNaN(date.getTime()) || date < cutoff || date > generatedAt) continue;
@@ -53,8 +56,12 @@ for (const reply of readJsonl(repliesPath)) {
   const rootId = reply.conversationRootId ? String(reply.conversationRootId) : null;
   const existing = records.get(key);
 
+  const replyAuthor = String(reply.authorUsername || "").toLowerCase();
+  const isExternalPublicReply = replyAuthor !== tracked;
+
   if (existing) {
-    duplicateThreadRows += 1;
+    if (isExternalPublicReply) mergedExternalPublicReplies += 1;
+    else mergedCompetitorAuthoredReplies += 1;
     existing.isThreadReply = true;
     if (rootId && !existing.conversationRootIds.includes(rootId)) existing.conversationRootIds.push(rootId);
     if (reply.parentPostId) existing.parentPostId = String(reply.parentPostId);
@@ -71,6 +78,8 @@ for (const reply of readJsonl(repliesPath)) {
     conversationRootIds: rootId ? [rootId] : []
   });
   acceptedThreadRows += 1;
+  if (isExternalPublicReply) acceptedExternalPublicReplies += 1;
+  else acceptedCompetitorAuthoredReplies += 1;
 }
 
 const merged = [...records.values()].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -86,7 +95,12 @@ for (const item of merged) {
   const competitor = String(item.trackedCompetitor).toLowerCase();
   byCompetitor[competitor] = (byCompetitor[competitor] || 0) + 1;
   byPostType[item.postType || "unknown"] = (byPostType[item.postType || "unknown"] || 0) + 1;
-  if (item.isThreadReply) publicThreadRepliesByCompetitor[competitor] = (publicThreadRepliesByCompetitor[competitor] || 0) + 1;
+  if (item.isThreadReply) {
+    const author = String(item.authorUsername || "").toLowerCase();
+    if (author !== competitor) {
+      publicThreadRepliesByCompetitor[competitor] = (publicThreadRepliesByCompetitor[competitor] || 0) + 1;
+    }
+  }
 }
 
 const progressPath = path.join(root, "data/output/thread-progress.jsonl");
@@ -127,8 +141,11 @@ const manifest = {
     totalUniqueCompetitorRecords: merged.length,
     byCompetitor,
     byPostType,
-    publicThreadRepliesAdded: acceptedThreadRows,
-    threadRowsMergedIntoExistingProfileReplies: duplicateThreadRows,
+    threadRepliesAdded: acceptedThreadRows,
+    externalPublicThreadRepliesAdded: acceptedExternalPublicReplies,
+    competitorAuthoredThreadRepliesAdded: acceptedCompetitorAuthoredReplies,
+    externalPublicThreadRepliesMergedWithProfileRecords: mergedExternalPublicReplies,
+    competitorAuthoredThreadRepliesMergedWithProfileRecords: mergedCompetitorAuthoredReplies,
     publicThreadRepliesByCompetitor
   },
   threadCoverage: {
