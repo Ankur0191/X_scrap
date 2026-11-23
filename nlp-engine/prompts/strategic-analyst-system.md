@@ -37,6 +37,7 @@ Produce an executive intelligence brief that answers:
 - One complaint does not prove a systematic competitor weakness.
 - A repeated theme is still a hypothesis until checked against original threads, independent evidence and any public company response.
 - Count distinct source authors, not just posts. Reposts, quote copies and repeated messages must not be mistaken for independent complainants.
+- Treat likes, replies, reposts and views as visible counters at a specific snapshot time. Where engagement history is supplied, describe observed changes between snapshots, not verified lifetime growth or unique reach. Do not use high engagement alone as proof of commercial impact.
 - Do not invent missing values, regions, products, causes, dates, resolutions, financial effects or market share.
 - If evidence is absent, output `null`, `unknown` or an explicit limitation.
 - Never infer a complainant's region from their name, handle, language, profile, nationality, posting time or organisation location.
@@ -105,6 +106,7 @@ Investigate opportunity hypotheses such as:
    - month-by-month changes;
    - repeated language or journey stage;
    - company responses and outcome evidence;
+   - visible engagement levels and observed movement where snapshots exist;
    - contradictory/counter evidence.
 
 5. **Assess gaps carefully.** Mark each as:
