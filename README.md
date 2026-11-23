@@ -152,6 +152,23 @@ Outputs:
 
 These are candidate signals, not proven gaps. A model-extracted geographic mention is not automatically a complainant's region.
 
+### Generate final evidence-backed briefs
+
+The final reasoning model is optional and provider-neutral. Configure an OpenAI-compatible endpoint in your PowerShell session (a local endpoint or a hosted provider you approve):
+
+```powershell
+$env:REASONING_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:REASONING_MODEL = "YOUR_INSTRUCT_MODEL"
+# Set REASONING_API_KEY only when your endpoint requires it.
+python nlp-engine\scripts\generate_brief.py
+```
+
+The script reads the domain taxonomies and coverage manifests, sends only aggregated clusters plus bounded evidence excerpts, and writes:
+- `data/output/competitor-brief-tic.json`
+- `data/output/competitor-brief-aspire_lifestyle.json`
+
+It computes collection coverage and date boundaries locally, validates each model response against `schemas/intelligence-brief.schema.json`, and saves invalid responses with validation errors rather than treating them as usable briefs. For hosted providers, review your data-handling requirements before sending source quotes outside your machine.
+
 ## 8. Strategic reasoning and JSON outputs
 
 GLiNER2.5 is the structured extraction layer, not the complete reasoning engine. A separate evidence-grounded LLM stage will synthesize recurring complaints, root-cause hypotheses, regions, business impact, competitor gaps, launches and actionables. Each claim must cite source post/reply IDs and exact evidence; hypotheses must be labelled as hypotheses.
