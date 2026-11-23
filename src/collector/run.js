@@ -338,9 +338,12 @@ try {
         }
       }
 
+      const timelineComplete = backfillWindow
+        ? completion === "window_boundary_reached"
+        : completion === "existing_data_boundary_reached";
       competitorSummary.timelines.push({
         timeline,
-        status: "completed",
+        status: timelineComplete ? "completed" : "partial",
         completion,
         resumeCheckpointReached,
         newPosts: totalNewForTimeline,
@@ -355,6 +358,13 @@ try {
 
   summary.accepted = acceptedTotal;
   summary.engagementSnapshotsAdded = engagementSnapshotsAdded;
+  if (backfillWindow) {
+    const timelineResults = summary.competitors.flatMap((item) => item.timelines);
+    summary.backfillCoverageStatus = timelineResults.length > 0 &&
+      timelineResults.every((item) => item.completion === "window_boundary_reached")
+      ? "complete_to_window_boundary"
+      : "partial";
+  }
   summary.completedAt = new Date().toISOString();
   fs.appendFileSync(runLogPath, JSON.stringify(summary) + "\n", "utf8");
   console.log("\nCollection summary:");
