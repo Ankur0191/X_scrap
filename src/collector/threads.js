@@ -56,14 +56,26 @@ if (fs.existsSync(replyPath)) {
 
 const now = new Date();
 const cutoff = new Date(now.getTime() - Number(settings.windowDays || 365) * 86400000);
-const eligible = queue.filter((item) => {
+const eligibleCandidates = queue.filter((item) => {
   const published = new Date(item.createdAt);
   if (Number.isNaN(published.getTime()) || published < cutoff || published > now) return false;
   const previous = progressByRoot.get(item.rootPostId);
   if (!previous || previous.status !== "visible_end_reached") return true;
   const checkedAt = new Date(previous.checkedAt);
   return Number.isNaN(checkedAt.getTime()) || now - checkedAt >= refreshDays * 86400000;
-}).slice(0, limit);
+});
+
+// Fair scheduling: never-scanned roots first, then roots least recently checked.
+// A limit on one monitoring cycle therefore cannot starve older conversations.
+eligibleCandidates.sort((a, b) => {
+  const previousA = progressByRoot.get(a.rootPostId);
+  const previousB = progressByRoot.get(b.rootPostId);
+  if (!previousA && previousB) return -1;
+  if (previousA && !previousB) return 1;
+  if (!previousA && !previousB) return new Date(b.createdAt) - new Date(a.createdAt);
+  return new Date(previousA.checkedAt || 0) - new Date(previousB.checkedAt || 0);
+});
+const eligible = eligibleCandidates.slice(0, limit);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const ask = async (question) => {
