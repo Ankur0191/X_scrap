@@ -12,6 +12,7 @@ const generatedAt = new Date();
 const cutoff = new Date(generatedAt.getTime() - windowDays * 86400000);
 const postsPath = path.join(root, "data/output", "posts-" + windowDays + "d.jsonl");
 const repliesPath = path.join(root, "data/output/thread-replies.jsonl");
+const ancestorsPath = path.join(root, "data/output/thread-ancestors.jsonl");
 const engagementPath = path.join(root, "data/output/engagement-snapshots.jsonl");
 const outputPath = path.join(root, "data/output", "conversation-" + windowDays + "d.jsonl");
 const manifestPath = path.join(root, "data/output/conversation-manifest.json");
@@ -42,6 +43,88 @@ for (const post of readJsonl(postsPath)) {
     isThreadReply: false,
     conversationRootIds: post.conversationRootId ? [String(post.conversationRootId)] : []
   });
+}
+
+let acceptedAncestorRows = 0;
+let mergedAncestorRows = 0;
+const candidateAncestorsByCompetitor = {};
+for (const ancestor of readJsonl(ancestorsPath)) {
+  const date = new Date(ancestor.createdAt);
+  if (Number.isNaN(date.getTime()) || date < cutoff || date > generatedAt) continue;
+
+  const tracked = String(ancestor.trackedCompetitor || "").toLowerCase();
+  const ancestorId = String(ancestor.id || "");
+  const childRootId = String(ancestor.ancestorForPostId || "");
+  if (!tracked || !ancestorId || !childRootId || ancestorId === childRootId) continue;
+
+  const ancestorKey = tracked + ":" + ancestorId;
+  const rootKey = tracked + ":" + childRootId;
+  const relationship = {
+    type: "candidate_parent_of",
+    targetType: "social_post",
+    targetId: childRootId,
+    relationshipStatus: ancestor.ancestorRelationshipStatus || "candidate_unverified",
+    discoveryMethod: ancestor.ancestorDiscoveryMethod || "unknown"
+  };
+
+  let ancestorRecord = records.get(ancestorKey);
+  if (!ancestorRecord) {
+    ancestorRecord = {
+      ...ancestor,
+      isThreadReply: false,
+      isThreadAncestor: true,
+      conversationRootId: childRootId,
+      conversationRootIds: [childRootId],
+      ancestorForPostId: childRootId,
+      ancestorForPostIds: [childRootId],
+      candidateReplyIds: Array.isArray(ancestor.candidateReplyIds) ? ancestor.candidateReplyIds.map(String) : [],
+      ancestorRelationshipStatus: ancestor.ancestorRelationshipStatus || "candidate_unverified",
+      ancestorDiscoveryMethod: ancestor.ancestorDiscoveryMethod || "unknown"
+    };
+    records.set(ancestorKey, ancestorRecord);
+    acceptedAncestorRows += 1;
+  } else {
+    mergedAncestorRows += 1;
+    ancestorRecord.isThreadAncestor = true;
+    ancestorRecord.ancestorForPostIds = [...new Set([
+      ...(ancestorRecord.ancestorForPostIds || (ancestorRecord.ancestorForPostId ? [ancestorRecord.ancestorForPostId] : [])),
+      childRootId
+    ])];
+    ancestorRecord.candidateReplyIds = [...new Set([
+      ...(ancestorRecord.candidateReplyIds || []),
+      ...(Array.isArray(ancestor.candidateReplyIds) ? ancestor.candidateReplyIds.map(String) : [])
+    ])];
+    ancestorRecord.relationships = [
+      ...(ancestorRecord.relationships || []),
+      relationship
+    ];
+  }
+
+  ancestorRecord.relationships = [
+    ...(ancestorRecord.relationships || []),
+    relationship
+  ];
+
+  const rootRecord = records.get(rootKey);
+  if (rootRecord) {
+    rootRecord.candidateParentPostIds = [...new Set([
+      ...(rootRecord.candidateParentPostIds || []),
+      ancestorId
+    ])];
+    rootRecord.ancestorRelationshipStatus = "candidate_unverified";
+    rootRecord.relationships = [
+      ...(rootRecord.relationships || []),
+      {
+        type: "has_candidate_parent",
+        targetType: "social_post",
+        targetId: ancestorId,
+        relationshipStatus: ancestor.ancestorRelationshipStatus || "candidate_unverified",
+        discoveryMethod: ancestor.ancestorDiscoveryMethod || "unknown"
+      }
+    ];
+  }
+
+  candidateAncestorsByCompetitor[tracked] = (candidateAncestorsByCompetitor[tracked] || 0) + 1;
 }
 
 let acceptedThreadRows = 0;
@@ -191,6 +274,10 @@ const manifest = {
     competitorAuthoredThreadRepliesAdded: acceptedCompetitorAuthoredReplies,
     externalPublicThreadRepliesMergedWithProfileRecords: mergedExternalPublicReplies,
     competitorAuthoredThreadRepliesMergedWithProfileRecords: mergedCompetitorAuthoredReplies,
+    threadAncestorsAdded: acceptedAncestorRows,
+    threadAncestorRowsMerged: mergedAncestorRows,
+    candidateAncestorsByCompetitor,
+    recordsWithCandidateParents: merged.filter((item) => Array.isArray(item.candidateParentPostIds) && item.candidateParentPostIds.length > 0).length,
     publicThreadRepliesByCompetitor
   },
   threadCoverage: {
