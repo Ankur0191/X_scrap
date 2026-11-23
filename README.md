@@ -1,78 +1,119 @@
-# X Competitor Intelligence Collector
+# X Competitor Intelligence Engine
 
-Local-first, headed Chromium collector for the visible X frontend, restricted to the competitor accounts and collection scope covered by your written X authorization.
+A local-first intelligence pipeline for TIC and Aspire Lifestyle competitors. X collection is limited to the written permission scope and currently uses the visible frontend collector; the platform API adapter is intended to replace it when the promised access is issued on January 15, 2027.
 
-## Authorization boundary
+## Current competitor targets
 
-Use this collector only within the exact scope of X's written permission. X's Terms include an express-written-permission exception for scraping, while its separate automation rules describe restrictions on scripting the X website. Confirm that the approval explicitly covers this temporary visible-frontend browser automation. This project does not access private endpoints, call undocumented APIs, inspect internal application state, intercept network requests, defeat CAPTCHA, evade rate limits, rotate proxies, or use stealth/fingerprint spoofing.
+| Organisation | X handle | Intelligence domain |
+|---|---|---|
+| Ten Technologies Group (formerly Ten Lifestyle Group) | `tenlifestyle` | `aspire_lifestyle` |
+| SGS | `SGS_SA` | `tic` |
 
-The collector reads rendered timeline cards through Playwright locators and navigates using normal page URLs and scrolling. It is not a general-purpose X crawler.
+Edit `config/competitors.json` to add organisations. The `domainId` field selects the appropriate NLP taxonomy.
 
-## Current targets
-
-- `tenlifestyle` — Ten Technologies Group (formerly Ten Lifestyle Group)
-- `SGS_SA` — SGS
-
-Edit `config/competitors.json` to enable/disable accounts and tune conservative collection limits.
-
-## Setup
+## 1. Install and authenticate
 
 Requires Node.js 20+.
 
-```bash
+```powershell
 npm install
 npx playwright install chromium
-npm run auth:setup
 npm run auth:check
-npm test
 ```
 
-The persistent Chromium profile lives in `.local/browser-profile/`. Sign in manually in the visible browser. Passwords, cookies and verification codes are never written to project files. The profile directory is excluded from Git; do not copy it to shared runners or commit it.
+Use the persistent headed browser profile and sign in manually when prompted. The local profile is stored in `.local/browser-profile/`, excluded from Git and never exported as a source file.
 
-## Collect
+## 2. Collect the rolling one-year window
 
-Latest-first scan (headed Chromium by default):
+Latest-first incremental scan:
 
-```bash
-npm run collect
-```
-
-Scan one competitor:
-
-```bash
+```powershell
 npm run collect:ten
 npm run collect:sgs
 ```
 
-Historical backfill through the available timeline, subject to the configured 250-scroll safety bound:
+One-time 365-day profile backfill for all enabled competitors:
 
-```bash
-npm run collect:all
+```powershell
+npm run backfill:year
+```
+
+The backfill uses the rolling cutoff and requires multiple consecutive screens containing no in-window posts before it marks the timeline boundary as reached. It does not stop just because visible cards are duplicates. The 1,200-scroll safety bound is a fail-safe, not a claim of completeness. Check each timeline's `completion` field in `data/output/collection-runs.jsonl`.
+
+Current profile collection covers:
+- Posts timeline
+- Replies timeline (posts/replies authored by the competitor account)
+- Visible text, dates, status URLs and action counts
+- Image/video presence and image alt/display URL
+- Explicit hashtags and @mentions with basic relationship edges
+
+**It does not yet guarantee every third-party reply under every competitor post.** Those require a separate conversation/thread crawler and independent coverage status. Do not label public thread replies complete until that layer is implemented and validated.
+
+## 3. Build the active rolling dataset
+
+The original `posts.jsonl` is preserved as the local collection log. Create a clean AI input containing only the current 365-day window:
+
+```powershell
+npm run build:window
+```
+
+Outputs:
+- `data/output/posts-365d.jsonl` — in-window records sorted by publication date
+- `data/output/window-manifest.json` — cutoff, counts, competitor split, post types and top hashtags
+
+The window builder also derives hashtags and account mentions from the original source text for legacy records collected before those fields were added. It does not rewrite the original collection file.
+
+## 4. Audit collection quality
+
+```powershell
 npm run audit:data
 ```
 
-The local audit command reports duplicate IDs, date coverage, missing fields, possible character-encoding issues, media-alt quality, author attribution and visible metric coverage. It prints aggregate diagnostics only and does not upload your dataset.
+The report includes duplicates, invalid fields, rolling-window eligibility, tag coverage, media metadata and metric coverage.
 
-Output:
-- `data/output/posts.jsonl` — append-only normalized visible post records.
-- `data/output/collection-runs.jsonl` — run summaries and stop reasons.
+## 5. Run local GLiNER2.5 extraction
 
-The collector scans the Posts and Replies tabs. It deduplicates by tracked competitor plus post ID, so a post present in both views is stored once. Metrics and media metadata are captured only when visible in the rendered card. A metric not shown by X remains null.
+See [nlp-engine/README.md](nlp-engine/README.md).
 
-## Authentication lifecycle
+PowerShell setup:
 
-`npm run auth:check` opens the persistent browser and checks the actual signed-in UI state. Cookie expiry metadata alone is not reliable proof of a valid session. If signed out, complete login manually. MFA, CAPTCHA and account security checks must be completed by the account owner; the collector stops rather than bypassing them.
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r nlp-engine\requirements.txt
+python -m uvicorn app.main:app --app-dir nlp-engine --host 127.0.0.1 --port 8010
+```
 
-Never run two jobs against the same browser profile at once.
+In a second terminal:
 
-## Headless mode
+```powershell
+npm run build:window
+python nlp-engine\scripts\analyze_jsonl.py --limit 10
+```
 
-Headed mode is the default. Headless mode is disabled in configuration until the written approval is confirmed to cover it. Do not enable it merely to avoid platform challenges or account safeguards.
+The processor maps Ten to the Aspire taxonomy and SGS to the TIC taxonomy automatically. Remove `--limit 10` to process the entire active file. Results are written to `data/output/enriched-posts.jsonl`.
 
-## January 15, 2027 API transition
+## Intelligence architecture
 
-The intended transition date is recorded in config. When X provides the API credentials and applicable access terms, replace the UI collector with the officially supported API adapter. Keep the common normalized schema so historical data and the Rivalmap pipeline remain compatible.
+- [Architecture and coverage design](docs/INTELLIGENCE_ARCHITECTURE.md)
+- [Common ontology](config/intelligence/ontology.json)
+- [TIC taxonomy](config/intelligence/tic.json)
+- [Aspire taxonomy](config/intelligence/aspire.json)
+- [Evidence-backed event schema](schemas/intelligence-event.schema.json)
+- [365-day intelligence brief schema](schemas/intelligence-brief.schema.json)
 
-## Data handling
+GLiNER2.5 is the extraction layer, not the final strategic reasoning model. Complaints, competitor gaps, impact and actionables need a separate evidence-grounded LLM stage and multi-post aggregation. Every conclusion should retain the post/reply IDs and exact evidence.
 
-Store collected data locally, restrict access to the output folder, and apply retention/deletion requirements from the written authorization. Do not enrich posts with private personal data. Preserve source URLs, timestamps, tracked competitor and collection provenance.
+## Data and security
+
+- Raw collection, browser profile and outputs stay local and are git-ignored.
+- Keep X's written authorization and follow its exact account, interface, frequency, retention and automation scope.
+- Stop on platform challenges or limits; do not bypass them.
+- Do not infer a complainant's location from their handle, name or language.
+- Do not treat one complaint as proof of a competitor gap.
+- Keep customer claims, competitor claims, verified facts and AI hypotheses separate.
+
+## API transition
+
+The config records January 15, 2027 as the planned API transition. The normalized post and intelligence schemas are designed so an officially provided API adapter can replace the browser source without changing the downstream NLP and analytics pipeline.
