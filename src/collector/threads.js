@@ -23,6 +23,7 @@ const refreshDays = Number(settings.threadRefreshDays || 7);
 
 const queuePath = path.join(root, "data/output/thread-queue-365d.jsonl");
 const replyPath = path.join(root, "data/output/thread-replies.jsonl");
+const snapshotsPath = path.join(root, "data/output/engagement-snapshots.jsonl");
 const progressPath = path.join(root, "data/output/thread-progress.jsonl");
 if (!fs.existsSync(queuePath)) {
   console.error("Thread queue missing. Run npm run threads:queue first.");
@@ -45,6 +46,21 @@ if (fs.existsSync(progressPath)) {
   }
 }
 const seenReplies = new Set();
+const latestSnapshotByPost = new Map();
+const snapshotSeenThisRun = new Set();
+let engagementSnapshotsAdded = 0;
+if (fs.existsSync(snapshotsPath)) {
+  for (const line of fs.readFileSync(snapshotsPath, "utf8").split(/\r?\n/).filter(Boolean)) {
+    try {
+      const item = JSON.parse(line);
+      const key = String(item.trackedCompetitor || "").toLowerCase() + ":" + String(item.postId || "");
+      const previous = latestSnapshotByPost.get(key);
+      if (!previous || new Date(item.snapshotAt) >= new Date(previous.snapshotAt)) {
+        latestSnapshotByPost.set(key, item);
+      }
+    } catch { /* preserve malformed snapshot rows */ }
+  }
+}
 if (fs.existsSync(replyPath)) {
   for (const line of fs.readFileSync(replyPath, "utf8").split(/\r?\n/).filter(Boolean)) {
     try {
@@ -167,6 +183,36 @@ try {
 
         const key = rootId + ":" + post.id;
         visibleReplyIds.add(post.id);
+
+        const snapshotKey = tracked + ":" + post.id;
+        if (!snapshotSeenThisRun.has(snapshotKey)) {
+          snapshotSeenThisRun.add(snapshotKey);
+          const snapshotAt = new Date().toISOString();
+          const currentMetrics = post.metrics || {};
+          const previousSnapshot = latestSnapshotByPost.get(snapshotKey);
+          const metricsChanged = !previousSnapshot ||
+            JSON.stringify(previousSnapshot.metrics || {}) !== JSON.stringify(currentMetrics);
+          const snapshotDue = !previousSnapshot ||
+            (Date.now() - new Date(previousSnapshot.snapshotAt).getTime()) >= Number(settings.engagementSnapshotIntervalHours || 6) * 60 * 60 * 1000;
+          if (metricsChanged || snapshotDue) {
+            const snapshot = {
+              trackedCompetitor: tracked,
+              postId: post.id,
+              postUrl: post.url,
+              publishedAt: post.createdAt,
+              conversationRootId: rootId,
+              metrics: currentMetrics,
+              previousMetrics: previousSnapshot?.metrics || null,
+              snapshotAt,
+              source: "x-visible-frontend-thread",
+              metricSemantics: "counts_visible_at_snapshot_time_not_lifetime_delta"
+            };
+            fs.appendFileSync(snapshotsPath, JSON.stringify(snapshot) + "\n", { encoding: "utf8", mode: 0o600 });
+            latestSnapshotByPost.set(snapshotKey, snapshot);
+            engagementSnapshotsAdded += 1;
+          }
+        }
+
         if (seenReplies.has(key)) {
           knownByAuthor.set(post.authorUsername, post.id);
           continue;
@@ -274,6 +320,7 @@ try {
   runSummary.completedAt = new Date().toISOString();
   runSummary.rootsChecked = rootsChecked;
   runSummary.newReplies = repliesAdded;
+  runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   runSummary.error = error.message;
   fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
   console.error("Thread collection stopped: " + error.message);
