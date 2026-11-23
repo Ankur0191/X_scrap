@@ -58,5 +58,161 @@
       "causal impact without supporting evidence"
     ],
     "unknownRepresentation": null
+  },
+  "relationEndpointTypes": {
+    "announced": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "event",
+        "product_service"
+      ]
+    },
+    "launched": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "product_service",
+        "event",
+        "technology"
+      ]
+    },
+    "offers": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "product_service"
+      ]
+    },
+    "partners_with": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "organization"
+      ]
+    },
+    "acquired": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "organization",
+        "product_service"
+      ]
+    },
+    "operates_in": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "region",
+        "location",
+        "industry"
+      ]
+    },
+    "located_in": {
+      "from": [
+        "organization",
+        "facility",
+        "product_service"
+      ],
+      "to": [
+        "location",
+        "region"
+      ]
+    },
+    "certified_by": {
+      "from": [
+        "organization",
+        "product_service",
+        "facility"
+      ],
+      "to": [
+        "organization",
+        "accreditation_body"
+      ]
+    },
+    "regulated_by": {
+      "from": [
+        "organization",
+        "product_service"
+      ],
+      "to": [
+        "standard_regulation",
+        "regulatory_authority"
+      ]
+    },
+    "affects": {
+      "from": [
+        "issue",
+        "event"
+      ],
+      "to": [
+        "organization",
+        "customer_segment",
+        "product_service",
+        "industry"
+      ]
+    },
+    "experienced_by": {
+      "from": [
+        "issue"
+      ],
+      "to": [
+        "customer_segment",
+        "person"
+      ]
+    },
+    "reported_from": {
+      "from": [
+        "issue"
+      ],
+      "to": [
+        "region",
+        "location"
+      ]
+    },
+    "responded_to": {
+      "from": [
+        "organization"
+      ],
+      "to": [
+        "issue",
+        "event"
+      ]
+    },
+    "resolved_by": {
+      "from": [
+        "issue"
+      ],
+      "to": [
+        "organization",
+        "product_service"
+      ]
+    },
+    "caused_by": {
+      "from": [
+        "issue",
+        "event"
+      ],
+      "to": [
+        "issue",
+        "event"
+      ]
+    },
+    "competes_with": {
+      "from": [
+        "organization",
+        "competitor"
+      ],
+      "to": [
+        "organization",
+        "competitor"
+      ]
+    }
   }
 }
