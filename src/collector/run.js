@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchPersistentSession, inspectSignedInState } from "../auth/session.js";
 import { profileDir } from "../auth/profile.js";
-import { extractVisiblePost, detectStopCondition } from "./visible-post.js";
+import { extractVisiblePost, detectStopCondition, selectTrackedCompetitors } from "./visible-post.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
@@ -25,12 +25,8 @@ if (!Array.isArray(config.competitors) || !config.competitors.some((item) => ite
 if (headless && !config.collection?.allowHeadless) {
   throw new Error("Headless mode is disabled in config/competitors.json. Keep the first validation headed.");
 }
-const competitors = config.competitors.filter((item) =>
-  item.enabled &&
-  (!accountFilter || item.username.toLowerCase() === accountFilter) &&
-  (!domainFilter || String(item.domainId || "").toLowerCase() === domainFilter)
-);
-if (!competitors.length) throw new Error("No enabled competitor matches --account.");
+const competitors = selectTrackedCompetitors(config.competitors, { accountFilter, domainFilter });
+if (!competitors.length) throw new Error("No enabled competitor matches the supplied --account/--domain filters.");
 
 const settings = config.collection || {};
 const timelines = settings.timelines || ["posts", "with_replies"];
@@ -149,7 +145,16 @@ try {
 
   for (const competitor of competitors) {
     const handle = competitor.username.replace(/^@/, "").toLowerCase();
-    const competitorSummary = { username: handle, timelines: [], accepted: 0 };
+    const competitorSummary = {
+      username: handle,
+      displayName: competitor.displayName || handle,
+      profileUrl: competitor.profileUrl || `https://x.com/${handle}`,
+      domainId: competitor.domainId || null,
+      accountScope: competitor.accountScope || "unspecified",
+      verificationStatus: competitor.verificationStatus || "not_confirmed",
+      timelines: [],
+      accepted: 0
+    };
     console.log("\n=== " + handle + " ===");
 
     for (const timeline of timelines) {
