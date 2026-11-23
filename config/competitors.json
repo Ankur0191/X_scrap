@@ -10,12 +10,18 @@
     "includeQuotePosts": true
   },
   "collection": {
-    "timelines": ["posts", "with_replies"],
+    "windowDays": 365,
+    "timelines": [
+      "posts",
+      "with_replies"
+    ],
     "maxScrollsLatest": 20,
-    "maxScrollsAll": 250,
-    "scrollDelayMs": 2500,
-    "emptyPagesToStop": 3,
-    "allowHeadless": false
+    "maxScrollsBackfill": 1200,
+    "scrollDelayMs": 3000,
+    "boundaryScreensRequired": 3,
+    "noNewScreensRequired": 3,
+    "allowHeadless": false,
+    "timelineOrderNewestFirst": true
   },
   "competitors": [
     {
@@ -24,7 +30,13 @@
       "enabled": true,
       "priority": 1,
       "profileUrl": "https://x.com/tenlifestyle",
-      "tags": ["concierge", "premium-lifestyle", "travel", "loyalty", "customer-experience"]
+      "tags": [
+        "concierge",
+        "premium-lifestyle",
+        "travel",
+        "loyalty",
+        "customer-experience"
+      ]
     },
     {
       "username": "SGS_SA",
@@ -32,7 +44,13 @@
       "enabled": true,
       "priority": 1,
       "profileUrl": "https://x.com/SGS_SA",
-      "tags": ["testing", "inspection", "certification", "assurance", "sustainability"]
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "assurance",
+        "sustainability"
+      ]
     }
   ]
 }
