@@ -15,6 +15,30 @@ export function metricFromLabel(label) {
   return [key, parseCount(match[1].replace(/\s/g, ""))];
 }
 
+export function extractHashtagsAndMentions(text) {
+  const value = String(text || "");
+  const hashtags = [];
+  const mentions = [];
+  const hashtagPattern = /(^|[\s([{])#([\p{L}\p{N}_]{1,100})/gu;
+  const mentionPattern = /(^|[\s([{])@([A-Za-z0-9_]{1,15})\b/g;
+
+  for (const match of value.matchAll(hashtagPattern)) {
+    const label = match[2];
+    const normalized = label.normalize("NFKC").toLocaleLowerCase("und");
+    if (!hashtags.some((item) => item.normalized === normalized)) {
+      hashtags.push({ label, normalized, start: match.index + match[1].length, end: match.index + match[1].length + match[0].length - match[1].length });
+    }
+  }
+  for (const match of value.matchAll(mentionPattern)) {
+    const handle = match[2];
+    const normalized = handle.toLowerCase();
+    if (!mentions.some((item) => item.normalized === normalized)) {
+      mentions.push({ handle, normalized, start: match.index + match[1].length, end: match.index + match[0].length });
+    }
+  }
+  return { hashtags, mentions };
+}
+
 export async function extractVisiblePost(card, trackedCompetitor, timelineView) {
   const time = card.locator("time").first();
   if (!(await time.count())) return null;
@@ -45,7 +69,6 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   const socialContext = await social.count() && await social.isVisible()
     ? (await social.innerText()).trim()
     : "";
-  // This function is called only while viewing the tracked profile's own timeline.
   const isRepost = /reposted/i.test(socialContext);
 
   if (authorUsername !== trackedCompetitor.toLowerCase() && !isRepost) return null;
@@ -61,6 +84,8 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   }
 
   const fullCardText = await card.innerText();
+  const primaryText = tweetTexts[0] || "";
+  const tags = extractHashtagsAndMentions(primaryText);
   const metrics = { replies: null, reposts: null, likes: null, views: null };
   const metricElements = card.locator('button[aria-label], a[aria-label], button[title], a[title]');
   for (let index = 0; index < await metricElements.count(); index += 1) {
@@ -89,12 +114,30 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   const isQuote = tweetTexts.length > 1;
   const isReply = /replying to/i.test(fullCardText);
   const isPinned = /\bpinned\b/i.test(socialContext) || /\bpinned\b/i.test(fullCardText.slice(0, 120));
+  const relationships = [
+    ...tags.hashtags.map((tag) => ({
+      type: "uses_hashtag",
+      targetType: "hashtag",
+      targetId: tag.normalized,
+      surface: tag.label
+    })),
+    ...tags.mentions.map((mention) => ({
+      type: "mentions_account",
+      targetType: "x_account",
+      targetId: mention.normalized,
+      surface: mention.handle
+    }))
+  ];
+
   return {
     id: postId,
     trackedCompetitor: trackedCompetitor.toLowerCase(),
     authorUsername,
-    text: tweetTexts[0] || "",
+    text: primaryText,
     quotedText: isQuote ? tweetTexts.slice(1) : [],
+    hashtags: tags.hashtags,
+    mentions: tags.mentions,
+    relationships,
     createdAt,
     url: permalink,
     metrics,
