@@ -62,6 +62,38 @@
         "sustainability"
       ],
       "domainId": "tic"
+    },
+    {
+      "username": "bureauveritas",
+      "displayName": "Bureau Veritas",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/bureauveritas",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "assurance",
+        "sustainability",
+        "quality"
+      ],
+      "domainId": "tic"
+    },
+    {
+      "username": "Intertek",
+      "displayName": "Intertek",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/Intertek",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "assurance",
+        "quality",
+        "sustainability"
+      ],
+      "domainId": "tic"
     }
   ]
 }
