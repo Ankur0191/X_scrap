@@ -11,6 +11,8 @@ const args = process.argv.slice(2);
 const backfillWindow = args.includes("--backfill") || args.includes("--all-available");
 const accountIndex = args.indexOf("--account");
 const accountFilter = accountIndex >= 0 ? String(args[accountIndex + 1] || "").replace(/^@/, "").toLowerCase() : null;
+const domainIndex = args.indexOf("--domain");
+const domainFilter = domainIndex >= 0 ? String(args[domainIndex + 1] || "").trim().toLowerCase() : null;
 const daysIndex = args.indexOf("--window-days");
 const requestedDays = daysIndex >= 0 ? Number(args[daysIndex + 1]) : Number(config.collection?.windowDays || 365);
 const windowDays = Number.isFinite(requestedDays) && requestedDays > 0 ? Math.min(requestedDays, 3650) : 365;
@@ -24,7 +26,9 @@ if (headless && !config.collection?.allowHeadless) {
   throw new Error("Headless mode is disabled in config/competitors.json. Keep the first validation headed.");
 }
 const competitors = config.competitors.filter((item) =>
-  item.enabled && (!accountFilter || item.username.toLowerCase() === accountFilter)
+  item.enabled &&
+  (!accountFilter || item.username.toLowerCase() === accountFilter) &&
+  (!domainFilter || String(item.domainId || "").toLowerCase() === domainFilter)
 );
 if (!competitors.length) throw new Error("No enabled competitor matches --account.");
 
@@ -107,6 +111,8 @@ const summary = {
   windowDays,
   cutoff: cutoff.toISOString(),
   timelineOrderAssumption: "newest_first",
+  domainFilter,
+  accountFilter,
   competitors: [],
   accepted: 0,
   engagementSnapshotsAdded: 0,
@@ -115,7 +121,9 @@ const summary = {
 
 try {
   console.log("X visible-frontend collector");
-  console.log("Mode: " + summary.mode + " | Scan: " + summary.scan);
+  console.log("Mode: " + summary.mode + " | Scan: " + summary.scan +
+    (domainFilter ? " | Domain: " + domainFilter : "") +
+    (accountFilter ? " | Account: " + accountFilter : ""));
   console.log("Rolling window: " + cutoff.toISOString() + " through " + new Date().toISOString());
   console.log("Browser profile: " + profileDir);
   console.log("Only posts inside the rolling window are written. Existing older rows remain untouched.");
