@@ -69,8 +69,14 @@ for (let index = 0; index < lines.length; index += 1) {
     ...post.mentions.map((mention) => ({ type: "mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle })),
     ...post.quotedHashtags.map((tag) => ({ type: "quoted_content_uses_hashtag", targetType: "hashtag", targetId: tag.normalized, surface: tag.label })),
     ...post.quotedMentions.map((mention) => ({ type: "quoted_content_mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle })),
-    ...(post.isQuote && post.quotedPostId ? [{ type: "quotes", targetType: "post", targetId: String(post.quotedPostId) }] : []),
-    ...(post.isRepost ? [{ type: "reposts", targetType: "post", targetId: String(post.id) }] : [])
+    ...(post.isQuote && post.quotedPostId ? [{ type: "quotes", targetType: "social_post", targetId: String(post.quotedPostId) }] : []),
+    ...(post.isRepost ? [{
+      type: "reposts",
+      sourceType: "x_account",
+      sourceId: String(post.trackedCompetitor).toLowerCase(),
+      targetType: "social_post",
+      targetId: String(post.id)
+    }] : [])
   ];
   const relationshipKeys = new Set(existingRelationships.map((item) => item.type + ":" + item.targetId));
   post.relationships = [...existingRelationships, ...generatedRelationships.filter((item) => !relationshipKeys.has(item.type + ":" + item.targetId))];
