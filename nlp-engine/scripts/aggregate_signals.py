@@ -160,7 +160,7 @@ def main() -> int:
             "sentiment": sentiment_label,
             "text": text,
             "geographicMentions": geographic,
-            "sourceRole": "customer_or_public_voice" if author != competitor else "competitor_published_content"
+            "sourceRole": "external_public_account" if author != competitor else "competitor_published_content"
         }
 
         for complaint_type in complaint_types:
@@ -186,7 +186,11 @@ def main() -> int:
     cluster_output = []
     candidate_gaps = []
     for (competitor, complaint_key, service_key), items in sorted(clusters.items()):
-        authors = {item["authorUsername"] for item in items if item["authorUsername"] not in {"", "unknown"}}
+        authors = {
+            item["authorUsername"]
+            for item in items
+            if item["authorUsername"] not in {"", "unknown", competitor}
+        }
         months = Counter(item["month"] for item in items)
         sentiment = Counter(item["sentiment"] for item in items)
         location_counts = Counter(
@@ -216,7 +220,7 @@ def main() -> int:
                     "createdAt": item["createdAt"],
                     "authorUsername": item["authorUsername"],
                     "quote": item["text"][:1200],
-                    "evidenceRole": "customer_claim" if item["sourceRole"] == "customer_or_public_voice" else "organization_claim"
+                    "evidenceRole": "public_account_claim" if item["sourceRole"] == "external_public_account" else "organization_claim"
                 }
                 for item in items[:args.evidence_limit]
             ],
@@ -265,7 +269,7 @@ def main() -> int:
                     "sourceUrl": item["sourceUrl"],
                     "createdAt": item["createdAt"],
                     "quote": item["text"][:1200],
-                    "evidenceRole": "organization_claim" if item["sourceRole"] == "competitor_published_content" else "customer_claim"
+                    "evidenceRole": "organization_claim" if item["sourceRole"] == "competitor_published_content" else "public_account_claim"
                 }
                 for item in items[:args.evidence_limit]
             ]
