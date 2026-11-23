@@ -5,7 +5,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { launchPersistentSession, inspectSignedInState } from "../auth/session.js";
 import { profileDir } from "../auth/profile.js";
-import { extractVisiblePost, detectStopCondition, classifyVisibleThreadReply } from "./visible-post.js";
+import { extractVisiblePost, detectStopCondition, classifyVisibleThreadReply, selectConversationAncestor } from "./visible-post.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
@@ -27,6 +27,7 @@ const queuePath = path.join(root, "data/output/thread-queue-365d.jsonl");
 const replyPath = path.join(root, "data/output/thread-replies.jsonl");
 const snapshotsPath = path.join(root, "data/output/engagement-snapshots.jsonl");
 const progressPath = path.join(root, "data/output/thread-progress.jsonl");
+const ancestorsPath = path.join(root, "data/output/thread-ancestors.jsonl");
 if (!fs.existsSync(queuePath)) {
   console.error("Thread queue missing. Run npm run threads:queue first.");
   process.exit(2);
@@ -54,6 +55,16 @@ if (fs.existsSync(progressPath)) {
   }
 }
 const seenReplies = new Set();
+const seenAncestors = new Set();
+if (fs.existsSync(ancestorsPath)) {
+  for (const line of fs.readFileSync(ancestorsPath, "utf8").split(/\r?\n/).filter(Boolean)) {
+    try {
+      const item = JSON.parse(line);
+      seenAncestors.add(String(item.trackedCompetitor || "").toLowerCase() + ":" +
+        String(item.id || "") + ":" + String(item.ancestorForPostId || ""));
+    } catch { /* ignore malformed historical ancestor rows */ }
+  }
+}
 const latestSnapshotByPost = new Map();
 const snapshotSeenThisRun = new Set();
 let engagementSnapshotsAdded = 0;
@@ -113,12 +124,14 @@ const ask = async (question) => {
 let context;
 let rootsChecked = 0;
 let repliesAdded = 0;
+let ancestorsAdded = 0;
 const runSummary = {
   startedAt: now.toISOString(),
   mode: headless ? "headless" : "headed",
   rollingWindowDays: Number(settings.windowDays || 365),
   rootsQueued: queue.length,
   rootsSelected: eligible.length,
+  ancestorsAdded: 0,
   roots: []
 };
 
@@ -154,6 +167,8 @@ try {
       newRepliesCaptured: 0,
       visibleReplyCount: 0,
       unclassifiedConversationCards: 0,
+      ancestorCandidatesFound: 0,
+      newAncestorsCaptured: 0,
       checkedAt: new Date().toISOString()
     };
     console.log("\nThread " + tracked + ":" + rootId);
@@ -170,7 +185,11 @@ try {
     let newRepliesForRoot = 0;
     let unclassifiedForRoot = 0;
     const visibleReplyIds = new Set();
+    const visibleExternalReplyAuthors = new Set();
     const unclassifiedCardIds = new Set();
+    const unclassifiedCards = new Map();
+    let lastRootArticleIndex = -1;
+    let newAncestorsForRoot = 0;
     const knownByAuthor = new Map([[String(rootPost.rootAuthorUsername).toLowerCase(), rootId]]);
     let visibleMoreReplyControl = false;
 
@@ -188,6 +207,7 @@ try {
         if (post.id === rootId) {
           rootVisible = true;
           rootArticleIndex = index;
+          lastRootArticleIndex = index;
           rootReplyCount = post.metrics?.replies ?? rootReplyCount;
           rootCreatedAt = post.createdAt;
           continue;
@@ -213,6 +233,7 @@ try {
         });
         if (!replyClassification.isReply) {
           // Count unique visible cards, not the same persistent card once per scroll screen.
+          unclassifiedCards.set(post.id, { post, index });
           if (!unclassifiedCardIds.has(post.id)) {
             unclassifiedCardIds.add(post.id);
             unclassifiedThisScreen += 1;
@@ -235,7 +256,9 @@ try {
         post.replyDetectionMethod = replyClassification.method;
         const key = rootId + ":" + post.id;
         unclassifiedCardIds.delete(post.id);
+        unclassifiedCards.delete(post.id);
         visibleReplyIds.add(post.id);
+        if (post.authorUsername !== tracked) visibleExternalReplyAuthors.add(post.authorUsername);
 
         const snapshotKey = tracked + ":" + post.id;
         if (!snapshotSeenThisRun.has(snapshotKey)) {
@@ -347,6 +370,69 @@ try {
       if (stop) throw new Error("Stopped by platform state: " + stop);
     }
 
+    // Discover a possible parent message above the selected competitor post.
+    // We only retain an earlier external card when its author also appears in a
+    // captured external reply under this root. This is a candidate relationship,
+    // not a claim that the parent edge has been conclusively verified.
+    if (rootVisible && visibleExternalReplyAuthors.size && lastRootArticleIndex >= 0 && rootCreatedAt) {
+      const ancestorResult = selectConversationAncestor({
+        candidates: [...unclassifiedCards.values()]
+          .filter((item) => item.index < lastRootArticleIndex)
+          .map((item) => item.post),
+        rootAuthorUsername: tracked,
+        rootCreatedAt,
+        externalReplyAuthors: [...visibleExternalReplyAuthors],
+        maxAgeHours: Number(settings.maxAncestorAgeHours || 72)
+      });
+      if (ancestorResult) {
+        const candidate = ancestorResult.candidate;
+        const matchingReplyIds = [...visibleReplyIds].filter((replyId) => {
+          // The later visible reply must be authored by the same participant.
+          const matching = [...unclassifiedCards.values()].find((item) =>
+            item.post.id === replyId && item.post.authorUsername === ancestorResult.matchedReplyAuthor
+          );
+          return Boolean(matching);
+        });
+        const ancestorKey = tracked + ":" + candidate.id + ":" + rootId;
+        unclassifiedCardIds.delete(candidate.id);
+        if (!seenAncestors.has(ancestorKey)) {
+          const ancestorRow = {
+            ...candidate,
+            trackedCompetitor: tracked,
+            isThreadAncestor: true,
+            isThreadReply: false,
+            ancestorForPostId: rootId,
+            candidateReplyIds: matchingReplyIds,
+            matchedReplyAuthor: ancestorResult.matchedReplyAuthor,
+            ancestorDiscoveryMethod: ancestorResult.discoveryMethod,
+            ancestorRelationshipStatus: ancestorResult.relationshipStatus,
+            source: "x-visible-frontend-thread-ancestor",
+            ingestedAt: new Date().toISOString()
+          };
+          fs.appendFileSync(ancestorsPath, JSON.stringify(ancestorRow) + "\n", {
+            encoding: "utf8",
+            mode: 0o600
+          });
+          seenAncestors.add(ancestorKey);
+          ancestorsAdded += 1;
+          newAncestorsForRoot += 1;
+          console.log("Ancestor candidate saved: " + JSON.stringify({
+            id: candidate.id,
+            authorUsername: candidate.authorUsername,
+            ancestorForPostId: rootId,
+            relationshipStatus: ancestorResult.relationshipStatus,
+            discoveryMethod: ancestorResult.discoveryMethod,
+            candidateReplyIds: matchingReplyIds
+          }));
+        } else {
+          console.log("Ancestor candidate already saved: " + candidate.id);
+        }
+      }
+    }
+
+    unclassifiedForRoot = unclassifiedCardIds.size;
+    status.ancestorCandidatesFound = newAncestorsForRoot > 0 ? 1 : 0;
+    status.newAncestorsCaptured = newAncestorsForRoot;
     if (!rootVisible) {
       status.status = "root_post_not_visible";
       status.completeness = "partial";
@@ -366,6 +452,7 @@ try {
   runSummary.completedAt = new Date().toISOString();
   runSummary.rootsChecked = rootsChecked;
   runSummary.newReplies = repliesAdded;
+  runSummary.ancestorsAdded = ancestorsAdded;
   runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
   console.log("\nThread collection summary:");
@@ -374,6 +461,7 @@ try {
   runSummary.completedAt = new Date().toISOString();
   runSummary.rootsChecked = rootsChecked;
   runSummary.newReplies = repliesAdded;
+  runSummary.ancestorsAdded = ancestorsAdded;
   runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   runSummary.error = error.message;
   fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
