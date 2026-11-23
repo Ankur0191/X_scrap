@@ -11,15 +11,12 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | quotedText | string[] | Visible quoted content, when detected |
 | quotedPostId | string or null | Quoted post ID, when the visible card exposes it |
 | relatedPosts | object[] | Other visible status links associated with the card |
-| relatedPosts | object[] | Other visible status links associated with the card |
 | createdAt | ISO-8601 string | Publication timestamp normalised to UTC |
 | url | string | Visible post permalink |
 | hashtags | object[] | Explicit hashtags from primary text, including normalised label and text offsets |
 | mentions | object[] | Explicit @mentions from primary text |
 | quotedHashtags | object[] | Explicit hashtags in visible quoted text |
 | quotedMentions | object[] | Explicit @mentions in visible quoted text |
-| quotedHashtags | object[] | Explicit hashtags in separately visible quoted text |
-| quotedMentions | object[] | Explicit @mentions in separately visible quoted text |
 | relationships | object[] | Candidate edges such as uses_hashtag, mentions_account, quotes and reposts |
 | metrics | object | Visible replies, reposts, likes and views; unavailable values remain null |
 | media | object[] | Visible image alt/display URL and video-presence metadata |
@@ -32,7 +29,6 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | parentPostId | string or null | Direct parent when explicitly identified in the visible thread |
 | replyingToUsername | string or null | Account handle shown in visible "Replying to" context |
 | isThreadReply | boolean | Whether the record came from the public conversation reply collector |
-| parentPostId | string or null | Direct parent when explicitly captured |
 | postType | string | post, reply, repost or quote |
 | timelineView | string | posts or with_replies; discovery location, not post type |
 | socialContext | string | Visible context label |
