@@ -130,9 +130,9 @@ def main() -> int:
     parser.add_argument("--window-manifest", default="data/output/window-manifest.json")
     parser.add_argument("--conversation-manifest", default="data/output/conversation-manifest.json")
     parser.add_argument("--system-prompt", default="nlp-engine/prompts/strategic-analyst-system.md")
-    parser.add_argument("--max-clusters", type=int, default=80)
-    parser.add_argument("--max-events", type=int, default=80)
-    parser.add_argument("--evidence-per-cluster", type=int, default=8)
+    parser.add_argument("--max-clusters", type=int, default=25)
+    parser.add_argument("--max-events", type=int, default=25)
+    parser.add_argument("--evidence-per-cluster", type=int, default=3)
     parser.add_argument("--output-dir", default="data/output")
     args = parser.parse_args()
 
@@ -220,7 +220,16 @@ def main() -> int:
             domain_clusters.sort(key=lambda item: (int(item.get("volume", 0)), int(item.get("uniquePublicAuthors", 0))), reverse=True)
             domain_clusters = domain_clusters[:max(1, args.max_clusters)]
             for item in domain_clusters:
-                item["evidence"] = (item.get("evidence") or [])[:max(1, args.evidence_per_cluster)]
+                all_ids = list(item.get("evidenceIds") or [])
+                selected_evidence = (item.get("evidence") or [])[:max(1, args.evidence_per_cluster)]
+                selected_ids = [str(row.get("sourcePostId")) for row in selected_evidence if row.get("sourcePostId")]
+                item["totalEvidenceCount"] = len(all_ids) or int(item.get("volume", 0))
+                item["additionalEvidenceIdsNotQuoted"] = [value for value in all_ids if value not in selected_ids]
+                item["evidenceIds"] = selected_ids
+                item["evidence"] = [
+                    {**row, "quote": str(row.get("quote") or "")[:800]}
+                    for row in selected_evidence
+                ]
 
             domain_events = [
                 item for item in events
@@ -229,7 +238,16 @@ def main() -> int:
             domain_events.sort(key=lambda item: int(item.get("volume", 0)), reverse=True)
             domain_events = domain_events[:max(1, args.max_events)]
             for item in domain_events:
-                item["evidence"] = (item.get("evidence") or [])[:max(1, args.evidence_per_cluster)]
+                all_ids = list(item.get("evidenceIds") or [])
+                selected_evidence = (item.get("evidence") or [])[:max(1, args.evidence_per_cluster)]
+                selected_ids = [str(row.get("sourcePostId")) for row in selected_evidence if row.get("sourcePostId")]
+                item["totalEvidenceCount"] = len(all_ids) or int(item.get("volume", 0))
+                item["additionalEvidenceIdsNotQuoted"] = [value for value in all_ids if value not in selected_ids]
+                item["evidenceIds"] = selected_ids
+                item["evidence"] = [
+                    {**row, "quote": str(row.get("quote") or "")[:800]}
+                    for row in selected_evidence
+                ]
 
             domain_candidates = [
                 item for item in candidate_hypotheses
