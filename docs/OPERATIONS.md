@@ -28,6 +28,8 @@
 - Pinned posts: the `isPinned` field is a best-effort visible-text indicator, not a guarantee.
 - Duplicate post IDs: deduplicate per tracked competitor, not globally.
 - Latest-first scan: does not stop on a single overlapping screen; it stops after the configured number of consecutive screens with no newly collected posts.
+- Thread queue: newest in-window root posts are tested first; progress and reply IDs persist across runs.
+- Thread status: `newRepliesCaptured` is the number newly appended in that run; `visibleReplyCount` is the unique visible reply cards seen in that scan.
 - Historical scan: `npm run collect:all` follows the timeline up to the configured scroll safety bound; it does not guarantee the entire account archive exists in the frontend.
 - UI changes: if card selectors stop matching, the collector reports no visible cards. Update selectors only against the visible UI, never by discovering hidden endpoints.
 - Protected/deactivated/suspended account: stop and record the page state; do not attempt alternate access.
