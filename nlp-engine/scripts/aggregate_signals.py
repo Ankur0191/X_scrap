@@ -115,6 +115,8 @@ def main() -> int:
         created_at = source.get("createdAt") or source_meta.get("createdAt")
         url = source.get("url") or source_meta.get("sourceUrl")
         post_type = str(source.get("postType") or ("reply" if source.get("isThreadReply") else "post"))
+        visible_metrics = source.get("engagementHistory", {}).get("latestMetrics") or source.get("metrics") or {}
+        engagement_history = source.get("engagementHistory") or {}
 
         try:
             created_dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
@@ -165,6 +167,8 @@ def main() -> int:
             "text": text,
             "geographicMentions": geographic,
             "sourceRole": "external_public_account" if author != competitor else "competitor_published_content",
+            "visibleMetrics": visible_metrics,
+            "engagementHistory": engagement_history,
             "sourceVoiceCandidates": source_voice_candidates,
             "journeyStageCandidates": journey_stage_candidates,
             "customerSegmentCandidates": customer_segment_candidates,
@@ -232,6 +236,8 @@ def main() -> int:
                     "createdAt": item["createdAt"],
                     "authorUsername": item["authorUsername"],
                     "quote": item["text"][:1200],
+                    "visibleMetrics": item.get("visibleMetrics", {}),
+                    "engagementHistory": item.get("engagementHistory", {}),
                     "evidenceRole": "public_account_claim" if item["sourceRole"] == "external_public_account" else "organization_claim"
                 }
                 for item in items[:args.evidence_limit]
@@ -285,6 +291,8 @@ def main() -> int:
                     "sourceUrl": item["sourceUrl"],
                     "createdAt": item["createdAt"],
                     "quote": item["text"][:1200],
+                    "visibleMetrics": item.get("visibleMetrics", {}),
+                    "engagementHistory": item.get("engagementHistory", {}),
                     "evidenceRole": "organization_claim" if item["sourceRole"] == "competitor_published_content" else "public_account_claim"
                 }
                 for item in items[:args.evidence_limit]
