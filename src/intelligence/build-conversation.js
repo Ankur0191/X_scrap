@@ -181,6 +181,8 @@ const manifest = {
   output: "data/output/conversation-" + windowDays + "d.jsonl",
   counts: {
     totalUniqueCompetitorRecords: merged.length,
+    recordsWithEngagementHistory: merged.filter((item) => item.engagementHistory).length,
+    engagementSnapshotsAvailable: readJsonl(engagementPath).length,
     byCompetitor,
     byPostType,
     threadRepliesAdded: acceptedThreadRows,
