@@ -283,8 +283,12 @@ def main() -> int:
                     continue
                 relation_type = str(relation.get("type") or "")
                 target_type = str(relation.get("targetType") or "")
+                if target_type == "post":
+                    target_type = "social_post"
                 target_name = str(relation.get("targetId") or "").strip()
                 source_type = str(relation.get("sourceType") or "social_post")
+                if source_type == "post":
+                    source_type = "social_post"
                 source_name = str(relation.get("sourceId") or evidence_id).strip()
                 if not target_type or not target_name:
                     continue
