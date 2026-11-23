@@ -112,5 +112,22 @@
     "customer_support_and_dispute",
     "renewal_and_recertification",
     "unknown"
+  ],
+  "customerSegments": [
+    "automotive_oem_or_tier_supplier",
+    "energy_operator_or_utility",
+    "mining_company_or_operator",
+    "construction_or_infrastructure_owner",
+    "food_producer_or_processor",
+    "pharmaceutical_or_biotech_company",
+    "medical_device_manufacturer",
+    "chemical_manufacturer",
+    "electronics_or_semiconductor_company",
+    "aerospace_or_defence_supplier",
+    "shipping_or_logistics_operator",
+    "government_or_public_procurement",
+    "laboratory_or_testing_provider",
+    "industrial_manufacturer",
+    "unknown"
   ]
 }
