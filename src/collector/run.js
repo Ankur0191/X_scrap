@@ -146,10 +146,8 @@ try {
         if (addedThisScreen === 0) emptyPages += 1;
         else emptyPages = 0;
 
-        if (!allAvailable && knownThisScreen > 0 && addedThisScreen === 0) {
-          console.log("Reached previously collected posts; latest-only scan complete.");
-          break;
-        }
+        // A single screen can contain only overlapping cards from the previous
+        // viewport. Keep scrolling until the configured no-new-screen threshold.
         if (emptyPages >= emptyPagesToStop) {
           console.log("No new posts across " + emptyPages + " successive screens; ending timeline scan.");
           break;
