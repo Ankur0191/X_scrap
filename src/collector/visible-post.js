@@ -1,3 +1,37 @@
+export function selectConversationAncestor({
+  candidates = [],
+  rootAuthorUsername,
+  rootCreatedAt,
+  externalReplyAuthors = [],
+  maxAgeHours = 72
+}) {
+  const rootAuthor = String(rootAuthorUsername || "").replace(/^@/, "").toLowerCase();
+  const replyAuthors = new Set(externalReplyAuthors.map((value) =>
+    String(value || "").replace(/^@/, "").toLowerCase()
+  ).filter(Boolean));
+  const rootTime = new Date(rootCreatedAt);
+  const maxAgeMs = Math.max(0, Number(maxAgeHours) || 0) * 60 * 60 * 1000;
+  if (!rootAuthor || !replyAuthors.size || Number.isNaN(rootTime.getTime()) || maxAgeMs <= 0) return null;
+
+  const eligible = candidates.filter((candidate) => {
+    const author = String(candidate?.authorUsername || "").replace(/^@/, "").toLowerCase();
+    const created = new Date(candidate?.createdAt);
+    if (!author || author === rootAuthor || !replyAuthors.has(author)) return false;
+    if (candidate?.isRepost || candidate?.isQuote) return false;
+    if (Number.isNaN(created.getTime()) || created > rootTime) return false;
+    return rootTime.getTime() - created.getTime() <= maxAgeMs;
+  }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (!eligible.length) return null;
+  const candidate = eligible[0];
+  return {
+    candidate,
+    discoveryMethod: "same_author_as_later_visible_reply_before_anchor",
+    relationshipStatus: "candidate_unverified",
+    matchedReplyAuthor: String(candidate.authorUsername).replace(/^@/, "").toLowerCase()
+  };
+}
+
 export function isThreadRootCandidate(post) {
   if (!post || typeof post !== "object") return false;
   const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
