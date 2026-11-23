@@ -12,6 +12,7 @@ const generatedAt = new Date();
 const cutoff = new Date(generatedAt.getTime() - windowDays * 86400000);
 const postsPath = path.join(root, "data/output", "posts-" + windowDays + "d.jsonl");
 const repliesPath = path.join(root, "data/output/thread-replies.jsonl");
+const engagementPath = path.join(root, "data/output/engagement-snapshots.jsonl");
 const outputPath = path.join(root, "data/output", "conversation-" + windowDays + "d.jsonl");
 const manifestPath = path.join(root, "data/output/conversation-manifest.json");
 
@@ -80,6 +81,47 @@ for (const reply of readJsonl(repliesPath)) {
   acceptedThreadRows += 1;
   if (isExternalPublicReply) acceptedExternalPublicReplies += 1;
   else acceptedCompetitorAuthoredReplies += 1;
+}
+
+const engagementByPost = new Map();
+for (const snapshot of readJsonl(engagementPath)) {
+  const key = String(snapshot.trackedCompetitor || "").toLowerCase() + ":" + String(snapshot.postId || "");
+  if (!key.endsWith(":")) {
+    if (!engagementByPost.has(key)) engagementByPost.set(key, []);
+    engagementByPost.get(key).push(snapshot);
+  }
+}
+
+for (const [key, record] of records) {
+  const history = (engagementByPost.get(key) || [])
+    .sort((a, b) => new Date(a.snapshotAt) - new Date(b.snapshotAt));
+  if (!history.length) continue;
+  const latest = history[history.length - 1];
+  const previous = history.length > 1 ? history[history.length - 2] : null;
+  const observedChange = {};
+  if (previous) {
+    for (const metric of ["replies", "reposts", "likes", "views"]) {
+      const before = previous.metrics?.[metric];
+      const after = latest.metrics?.[metric];
+      observedChange[metric] =
+        Number.isFinite(Number(before)) && Number.isFinite(Number(after))
+          ? Number(after) - Number(before)
+          : null;
+    }
+  }
+  record.engagementHistory = {
+    snapshotCount: history.length,
+    firstSnapshotAt: history[0].snapshotAt,
+    latestSnapshotAt: latest.snapshotAt,
+    latestMetrics: latest.metrics || {},
+    previousMetrics: previous?.metrics || null,
+    observedChangeSincePreviousSnapshot: previous ? observedChange : null,
+    recentSnapshots: history.slice(-10).map((item) => ({
+      snapshotAt: item.snapshotAt,
+      metrics: item.metrics || {}
+    })),
+    semantics: "observed visible count change between snapshots; not an authoritative lifetime metric delta"
+  };
 }
 
 const merged = [...records.values()].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
