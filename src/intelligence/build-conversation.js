@@ -84,7 +84,8 @@ for (const reply of readJsonl(repliesPath)) {
 }
 
 const engagementByPost = new Map();
-for (const snapshot of readJsonl(engagementPath)) {
+const engagementSnapshotRows = readJsonl(engagementPath);
+for (const snapshot of engagementSnapshotRows) {
   const key = String(snapshot.trackedCompetitor || "").toLowerCase() + ":" + String(snapshot.postId || "");
   if (!key.endsWith(":")) {
     if (!engagementByPost.has(key)) engagementByPost.set(key, []);
@@ -182,7 +183,7 @@ const manifest = {
   counts: {
     totalUniqueCompetitorRecords: merged.length,
     recordsWithEngagementHistory: merged.filter((item) => item.engagementHistory).length,
-    engagementSnapshotsAvailable: readJsonl(engagementPath).length,
+    engagementSnapshotsAvailable: engagementSnapshotRows.length,
     byCompetitor,
     byPostType,
     threadRepliesAdded: acceptedThreadRows,
