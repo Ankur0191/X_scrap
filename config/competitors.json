@@ -21,7 +21,12 @@
     "boundaryScreensRequired": 3,
     "noNewScreensRequired": 3,
     "allowHeadless": false,
-    "timelineOrderNewestFirst": true
+    "timelineOrderNewestFirst": true,
+    "threadRefreshDays": 7,
+    "maxThreadScrolls": 30,
+    "threadScrollDelayMs": 2500,
+    "threadStableScreens": 3,
+    "includePublicThreadReplies": true
   },
   "competitors": [
     {
