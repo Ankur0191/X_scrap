@@ -155,6 +155,7 @@ def main() -> int:
     conversation_path = resolve(args.conversation)
     window_manifest_path = resolve(args.window_manifest)
     conversation_manifest_path = resolve(args.conversation_manifest)
+    graph_path = resolve("data/output/entity-graph.json")
     prompt_path = resolve(args.system_prompt)
     schema_path = repo_root / "schemas" / "intelligence-brief.schema.json"
     config_path = repo_root / "config" / "competitors.json"
@@ -168,6 +169,7 @@ def main() -> int:
     cluster_document = read_json(cluster_path, {})
     window_manifest = read_json(window_manifest_path, {})
     conversation_manifest = read_json(conversation_manifest_path, {})
+    graph_document = read_json(graph_path, {})
     config = read_json(config_path, {})
     with prompt_path.open("r", encoding="utf-8") as handle:
         system_prompt = handle.read()
@@ -265,6 +267,63 @@ def main() -> int:
             coverage, thread_detail = calculate_coverage(
                 domain_id, domain_by_competitor, conversation_rows, progress_rows
             )
+
+            domain_evidence_ids = {
+                str(evidence_id)
+                for cluster in domain_clusters + domain_events
+                for evidence_id in (cluster.get("evidenceIds") or [])
+            }
+            for candidate in domain_candidates:
+                domain_evidence_ids.update(str(value) for value in (candidate.get("basis", {}).get("evidenceIds") or []))
+            graph_nodes = [
+                node for node in graph_document.get("nodes", [])
+                if domain_evidence_ids.intersection(str(value) for value in (node.get("evidenceIds") or []))
+            ]
+            graph_node_names = {
+                node.get("entityId"): {
+                    "type": node.get("type"),
+                    "name": node.get("name")
+                }
+                for node in graph_nodes
+            }
+            graph_edges = [
+                edge for edge in graph_document.get("edges", [])
+                if domain_evidence_ids.intersection(str(value) for value in (edge.get("evidenceIds") or []))
+            ]
+            graph_edges.sort(
+                key=lambda edge: (
+                    int(edge.get("evidenceCount", 0)),
+                    len(edge.get("evidenceIds") or [])
+                ),
+                reverse=True
+            )
+            entity_graph_summary = {
+                "status": "available" if graph_document else "not_built",
+                "totalMatchingNodes": len(graph_nodes),
+                "totalMatchingEdges": len(graph_edges),
+                "nodes": [
+                    {
+                        "entityId": node.get("entityId"),
+                        "type": node.get("type"),
+                        "name": node.get("name"),
+                        "evidenceCount": node.get("evidenceCount", 0),
+                        "evidenceIds": (node.get("evidenceIds") or [])[:5]
+                    }
+                    for node in sorted(graph_nodes, key=lambda item: int(item.get("evidenceCount", 0)), reverse=True)[:60]
+                ],
+                "edges": [
+                    {
+                        "relationId": edge.get("relationId"),
+                        "relationType": edge.get("relationType"),
+                        "from": graph_node_names.get(edge.get("fromEntityId"), {"entityId": edge.get("fromEntityId")}),
+                        "to": graph_node_names.get(edge.get("toEntityId"), {"entityId": edge.get("toEntityId")}),
+                        "validationStatus": edge.get("validationStatus"),
+                        "evidenceCount": edge.get("evidenceCount", 0),
+                        "evidenceIds": (edge.get("evidenceIds") or [])[:5]
+                    }
+                    for edge in graph_edges[:80]
+                ]
+            }
             window_days = int(window_manifest.get("window", {}).get("days") or config.get("collection", {}).get("windowDays") or 365)
             start_date = window_manifest.get("window", {}).get("startInclusive")
             end_date = window_manifest.get("window", {}).get("endInclusive")
@@ -300,6 +359,7 @@ def main() -> int:
                 "complaintClusters": domain_clusters,
                 "strategicEventClusters": domain_events,
                 "candidateOpportunityHypotheses": domain_candidates,
+                "entityGraphSummary": entity_graph_summary,
                 "limitations": cluster_document.get("limitations", [])
             }
 
