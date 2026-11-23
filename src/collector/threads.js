@@ -14,6 +14,8 @@ const limitIndex = args.indexOf("--limit");
 const limit = limitIndex >= 0 ? Math.max(1, Number(args[limitIndex + 1]) || 1) : Infinity;
 const accountIndex = args.indexOf("--account");
 const accountFilter = accountIndex >= 0 ? String(args[accountIndex + 1] || "").replace(/^@/, "").toLowerCase() : null;
+const postIdIndex = args.indexOf("--post-id");
+const postIdFilter = postIdIndex >= 0 ? String(args[postIdIndex + 1] || "").trim() : null;
 const headless = process.env.X_HEADLESS === "1";
 const settings = config.collection || {};
 const maxScrolls = Number(settings.maxThreadScrolls || 30);
@@ -34,7 +36,13 @@ if (headless && !settings.allowHeadless) {
 }
 
 const queue = fs.readFileSync(queuePath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
-  .filter((item) => !accountFilter || item.trackedCompetitor === accountFilter);
+  .filter((item) => !accountFilter || item.trackedCompetitor === accountFilter)
+  .filter((item) => !postIdFilter || String(item.rootPostId) === postIdFilter);
+
+if (postIdFilter && queue.length === 0) {
+  console.error("No queued root post matches --post-id " + postIdFilter + ". Rebuild the thread queue and confirm the post is an eligible competitor-authored root.");
+  process.exit(2);
+}
 
 const progressByRoot = new Map();
 if (fs.existsSync(progressPath)) {
@@ -76,6 +84,8 @@ const eligibleCandidates = queue.filter((item) => {
   const published = new Date(item.createdAt);
   if (Number.isNaN(published.getTime()) || published < cutoff || published > now) return false;
   const previous = progressByRoot.get(item.rootPostId);
+  // An explicit diagnostic target should be rechecked even if its previous UI scan reached the visible end.
+  if (postIdFilter) return true;
   if (!previous || previous.status !== "visible_end_reached") return true;
   const checkedAt = new Date(previous.checkedAt);
   return Number.isNaN(checkedAt.getTime()) || now - checkedAt >= refreshDays * 86400000;
