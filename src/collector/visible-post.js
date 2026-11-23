@@ -38,6 +38,18 @@ export function isProbableSpamControlLabel(value) {
     /\b(show|view|display|reveal|load)\b/i.test(label);
 }
 
+export function selectTrackedCompetitors(competitors, { accountFilter = null, domainFilter = null } = {}) {
+  const account = String(accountFilter || "").replace(/^@/, "").toLowerCase() || null;
+  const domain = String(domainFilter || "").trim().toLowerCase() || null;
+  if (!Array.isArray(competitors)) return [];
+  return competitors.filter((item) => {
+    if (!item || !item.enabled) return false;
+    const username = String(item.username || "").replace(/^@/, "").toLowerCase();
+    const domainId = String(item.domainId || "").toLowerCase();
+    return (!account || username === account) && (!domain || domainId === domain);
+  });
+}
+
 export function isThreadRootCandidate(post) {
   if (!post || typeof post !== "object") return false;
   const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
