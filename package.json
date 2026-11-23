@@ -23,7 +23,8 @@
     "collect:threads": "node src/collector/threads.js",
     "build:conversation": "node src/intelligence/build-conversation.js",
     "collect:cycle": "node src/collector/cycle.js",
-    "reason:brief": "python nlp-engine/scripts/generate_brief.py"
+    "reason:brief": "python nlp-engine/scripts/generate_brief.py",
+    "graph:build": "python nlp-engine/scripts/build_entity_graph.py"
   },
   "dependencies": {
     "playwright": "^1.56.0"
