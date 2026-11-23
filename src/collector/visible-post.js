@@ -39,7 +39,7 @@ export function extractHashtagsAndMentions(text) {
   return { hashtags, mentions };
 }
 
-export async function extractVisiblePost(card, trackedCompetitor, timelineView) {
+export async function extractVisiblePost(card, trackedCompetitor, timelineView, options = {}) {
   const time = card.locator("time").first();
   if (!(await time.count())) return null;
   const createdAt = await time.getAttribute("datetime");
@@ -79,7 +79,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
     : "";
   const isRepost = /reposted/i.test(socialContext);
 
-  if (authorUsername !== trackedCompetitor.toLowerCase() && !isRepost) return null;
+  if (authorUsername !== trackedCompetitor.toLowerCase() && !isRepost && !options.allowExternalAuthors) return null;
 
   const textLocator = card.locator('[data-testid="tweetText"]');
   const tweetTexts = [];
@@ -126,6 +126,8 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   const relatedPosts = statusLinks.filter((item) => item.postId !== postId);
   const quotedPost = isQuote ? relatedPosts[0] || null : null;
   const isReply = /replying to/i.test(fullCardText);
+  const replyingToMatch = fullCardText.match(/replying to\\s+@([A-Za-z0-9_]{1,15})/i);
+  const replyingToUsername = replyingToMatch ? replyingToMatch[1].toLowerCase() : null;
   const isPinned = /\bpinned\b/i.test(socialContext) || /\bpinned\b/i.test(fullCardText.slice(0, 120));
   const relationships = [
     ...tags.hashtags.map((tag) => ({
@@ -184,6 +186,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
     metrics,
     media,
     isReply,
+    replyingToUsername,
     isRepost,
     isQuote,
     isPinned,
