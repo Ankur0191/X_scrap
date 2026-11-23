@@ -104,7 +104,7 @@ Conversation outputs:
 The local cycle runner is `scripts/run-cycle.ps1`. To schedule it, open Windows Task Scheduler and create a task with:
 
 1. Trigger: **At log on** for your Windows user, repeat every 60 minutes.
-2. Action: start `powershell.exe` with arguments `-NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\Dell\\Desktop\\X\\X_scrap\\scripts\\run-cycle.ps1"` (adjust the repository path if needed).
+2. Action: start `powershell.exe` with arguments `-NoProfile -ExecutionPolicy Bypass -File "C:\Users\Dell\Desktop\X\X_scrap\scripts\run-cycle.ps1"` (adjust the repository path if needed).
 3. Security: choose **Run only when the user is logged on**. The current collector uses headed Chromium and the existing local browser profile.
 4. Settings: do not start a second instance when the previous cycle is still running.
 
