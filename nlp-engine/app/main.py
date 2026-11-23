@@ -53,6 +53,7 @@ DOMAIN_PROFILES = {
     "tic": read_json(CONFIG_DIR / "tic.json"),
     "aspire_lifestyle": read_json(CONFIG_DIR / "aspire.json")
 }
+RELATION_ENDPOINT_TYPES = ONTOLOGY.get("relationEndpointTypes", {})
 
 
 def get_model():
@@ -123,6 +124,69 @@ def build_relation_labels() -> list[str]:
     ]
 
 
+def value_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return str(value.get("text", ""))
+    return str(value)
+
+
+def validate_relation_candidates(relation_result: Any, entity_result: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    entity_types_by_text: dict[str, set[str]] = {}
+    entities = entity_result.get("entities", {}) if isinstance(entity_result, dict) else {}
+    if isinstance(entities, dict):
+        for entity_type, mentions in entities.items():
+            if not isinstance(mentions, list):
+                continue
+            for mention in mentions:
+                text = value_text(mention).strip().casefold()
+                if text:
+                    entity_types_by_text.setdefault(text, set()).add(entity_type)
+
+    relation_groups = relation_result.get("relation_extraction", {}) if isinstance(relation_result, dict) else {}
+    validated: list[dict[str, Any]] = []
+    untyped: list[dict[str, Any]] = []
+    if not isinstance(relation_groups, dict):
+        return validated, untyped
+
+    for relation_type, edges in relation_groups.items():
+        if not isinstance(edges, list):
+            continue
+        endpoint_rule = RELATION_ENDPOINT_TYPES.get(relation_type)
+        for edge in edges:
+            if isinstance(edge, dict):
+                head = edge.get("head")
+                tail = edge.get("tail")
+            elif isinstance(edge, (tuple, list)) and len(edge) >= 2:
+                head, tail = edge[0], edge[1]
+                edge = {}
+            else:
+                continue
+            head_text = value_text(head).strip()
+            tail_text = value_text(tail).strip()
+            head_types = sorted(entity_types_by_text.get(head_text.casefold(), set()))
+            tail_types = sorted(entity_types_by_text.get(tail_text.casefold(), set()))
+            record = {
+                "relationType": relation_type,
+                "head": head,
+                "tail": tail,
+                "headEntityTypes": head_types,
+                "tailEntityTypes": tail_types,
+                "confidence": edge.get("confidence") if isinstance(edge, dict) else None
+            }
+            if (
+                endpoint_rule
+                and head_types
+                and tail_types
+                and any(kind in endpoint_rule["from"] for kind in head_types)
+                and any(kind in endpoint_rule["to"] for kind in tail_types)
+            ):
+                validated.append(record)
+            else:
+                record["validationReason"] = "missing_or_incompatible_typed_endpoints"
+                untyped.append(record)
+    return validated, untyped
+
+
 def analyze_one(item: AnalyzeRequest) -> dict[str, Any]:
     model = get_model()
     try:
@@ -142,6 +206,7 @@ def analyze_one(item: AnalyzeRequest) -> dict[str, Any]:
             include_confidence=True,
             include_spans=True
         )
+        validated_relations, untyped_relations = validate_relation_candidates(relations, entities)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Model extraction failed: {type(exc).__name__}: {exc}") from exc
 
@@ -161,7 +226,9 @@ def analyze_one(item: AnalyzeRequest) -> dict[str, Any]:
         "extraction": {
             "entities": entities.get("entities", {}) if isinstance(entities, dict) else entities,
             "classifications": classifications,
-            "candidateRelations": relations.get("relation_extraction", {}) if isinstance(relations, dict) else relations
+            "candidateRelations": relations.get("relation_extraction", {}) if isinstance(relations, dict) else relations,
+            "validatedRelations": validated_relations,
+            "untypedRelations": untyped_relations
         },
         "interpretationGuardrails": {
             "complainantRegion": "Entity extraction identifies geographic mentions only. It does not establish that a complainant is located there.",
