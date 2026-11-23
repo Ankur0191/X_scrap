@@ -156,13 +156,15 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView, 
     })),
     ...(quotedPost ? [{
       type: "quotes",
-      targetType: "post",
+      targetType: "social_post",
       targetId: quotedPost.postId,
       targetUrl: quotedPost.url
     }] : []),
     ...(isRepost ? [{
       type: "reposts",
-      targetType: "post",
+      sourceType: "x_account",
+      sourceId: trackedCompetitor.toLowerCase(),
+      targetType: "social_post",
       targetId: postId,
       targetUrl: permalink
     }] : [])
