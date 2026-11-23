@@ -16,7 +16,9 @@
     "test": "node --test",
     "collect:ten": "node src/collector/run.js --account tenlifestyle",
     "collect:sgs": "node src/collector/run.js --account SGS_SA",
-    "audit:data": "node src/ingest/audit.js"
+    "audit:data": "node src/ingest/audit.js",
+    "backfill:year": "node src/collector/run.js --backfill --window-days 365",
+    "build:window": "node src/intelligence/build-window.js"
   },
   "dependencies": {
     "playwright": "^1.56.0"
