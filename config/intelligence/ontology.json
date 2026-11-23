@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "Shared cross-sector ontology for competitor intelligence. Domain profiles extend, but do not redefine, the canonical entity and relationship IDs.",
+  "entityTypes": {
+    "organization": "A company, agency, bank, payment network, regulator, NGO, supplier or other institution",
+    "person": "A person explicitly named in the source text",
+    "product_service": "A named product, service, card, program, platform or commercial offering",
+    "location": "A place explicitly mentioned in the content",
+    "region": "A country, state, province, city-region or other geographic market",
+    "industry": "An industry or economic sector",
+    "customer_segment": "A type of customer, buyer, member, cardholder or user",
+    "technology": "A technology, software platform, AI capability or technical standard",
+    "standard_regulation": "A law, regulation, standard, certification scheme or compliance requirement",
+    "event": "A launch, partnership, acquisition, incident, award, expansion, outage or other dated development",
+    "issue": "A complaint, operational failure, unmet need, risk or recurring customer problem",
+    "competitor": "An organization treated as a market competitor in the current domain",
+    "hashtag": "A hashtag explicitly present in the source post",
+    "x_account": "An X account explicitly mentioned or identified as an author"
+  },
+  "relationTypes": {
+    "announced": "Organization announced an event, change or initiative",
+    "launched": "Organization introduced a product, service or capability",
+    "offers": "Organization offers a product or service",
+    "partners_with": "Two organizations entered or announced a partnership",
+    "acquired": "One organization acquired another organization or asset",
+    "operates_in": "Organization explicitly operates in a market or region",
+    "located_in": "Entity is explicitly located in a place",
+    "certified_by": "Product, organization or process was certified by an organization",
+    "regulated_by": "Organization or product is subject to a named regulator or regulation",
+    "affects": "Issue or event affects an entity, service, user group or market",
+    "experienced_by": "A complaint or issue was experienced by a user or customer segment",
+    "reported_from": "A complaint or report explicitly originates from a region",
+    "responded_to": "Organization publicly responded to a complaint or issue",
+    "resolved_by": "Issue was explicitly resolved by an organization or action",
+    "caused_by": "Evidence explicitly identifies a cause",
+    "competes_with": "Organizations compete in a stated market or service",
+    "mentions_account": "Post explicitly mentions an X account",
+    "uses_hashtag": "Post explicitly uses a hashtag",
+    "replies_to": "A post is a reply to another post",
+    "quotes": "A post quotes another post",
+    "reposts": "A post reposts another post",
+    "evidenced_by": "An analysis claim is supported by one or more source records"
+  },
+  "evidenceRules": {
+    "explicitOnly": [
+      "complainant identity",
+      "complainant location",
+      "product ownership",
+      "root cause",
+      "regulatory breach",
+      "resolution status"
+    ],
+    "neverInfer": [
+      "precise location from account identity",
+      "customer identity from a handle unless explicitly relevant and public",
+      "a service failure from negative sentiment alone",
+      "a competitor gap from one isolated complaint",
+      "causal impact without supporting evidence"
+    ],
+    "unknownRepresentation": null
+  }
+}
