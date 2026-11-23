@@ -130,9 +130,9 @@ def main() -> int:
     parser.add_argument("--window-manifest", default="data/output/window-manifest.json")
     parser.add_argument("--conversation-manifest", default="data/output/conversation-manifest.json")
     parser.add_argument("--system-prompt", default="nlp-engine/prompts/strategic-analyst-system.md")
-    parser.add_argument("--max-clusters", type=int, default=25)
-    parser.add_argument("--max-events", type=int, default=25)
-    parser.add_argument("--evidence-per-cluster", type=int, default=3)
+    parser.add_argument("--max-clusters", type=int, default=15)
+    parser.add_argument("--max-events", type=int, default=15)
+    parser.add_argument("--evidence-per-cluster", type=int, default=2)
     parser.add_argument("--output-dir", default="data/output")
     args = parser.parse_args()
 
@@ -227,7 +227,7 @@ def main() -> int:
                 item["additionalEvidenceIdsNotQuoted"] = [value for value in all_ids if value not in selected_ids]
                 item["evidenceIds"] = selected_ids
                 item["evidence"] = [
-                    {**row, "quote": str(row.get("quote") or "")[:800]}
+                    {**row, "quote": str(row.get("quote") or "")[:600]}
                     for row in selected_evidence
                 ]
 
@@ -253,6 +253,14 @@ def main() -> int:
                 item for item in candidate_hypotheses
                 if str(item.get("competitor", "")).lower() in domain_handles
             ]
+            domain_candidates.sort(
+                key=lambda item: (
+                    int(item.get("basis", {}).get("postCount", 0)),
+                    int(item.get("basis", {}).get("uniquePublicAuthors", 0))
+                ),
+                reverse=True
+            )
+            domain_candidates = domain_candidates[:25]
 
             coverage, thread_detail = calculate_coverage(
                 domain_id, domain_by_competitor, conversation_rows, progress_rows
