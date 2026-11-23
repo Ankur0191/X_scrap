@@ -36,18 +36,34 @@ const maxScrolls = backfillWindow
 const scrollDelayMs = Number(settings.scrollDelayMs || 3000);
 const boundaryScreensRequired = Number(settings.boundaryScreensRequired || 3);
 const noNewScreensRequired = Number(settings.noNewScreensRequired || 3);
+const engagementSnapshotIntervalHours = Number(settings.engagementSnapshotIntervalHours || 6);
 
 const outputDir = path.join(root, "data/output");
 fs.mkdirSync(outputDir, { recursive: true, mode: 0o700 });
 const outputPath = path.join(outputDir, "posts.jsonl");
 const runLogPath = path.join(outputDir, "collection-runs.jsonl");
+const snapshotsPath = path.join(outputDir, "engagement-snapshots.jsonl");
 const seen = new Set();
+const seenForSnapshotThisRun = new Set();
+const latestSnapshotByPost = new Map();
 if (fs.existsSync(outputPath)) {
   for (const line of fs.readFileSync(outputPath, "utf8").split(/\r?\n/).filter(Boolean)) {
     try {
       const item = JSON.parse(line);
       seen.add(String(item.trackedCompetitor || item.authorUsername).toLowerCase() + ":" + String(item.id));
     } catch { /* preserve malformed historical lines */ }
+  }
+}
+if (fs.existsSync(snapshotsPath)) {
+  for (const line of fs.readFileSync(snapshotsPath, "utf8").split(/\r?\n/).filter(Boolean)) {
+    try {
+      const item = JSON.parse(line);
+      const key = String(item.trackedCompetitor || "").toLowerCase() + ":" + String(item.postId || "");
+      const previous = latestSnapshotByPost.get(key);
+      if (!previous || new Date(item.snapshotAt) >= new Date(previous.snapshotAt)) {
+        latestSnapshotByPost.set(key, item);
+      }
+    } catch { /* preserve malformed snapshot rows */ }
   }
 }
 
@@ -65,6 +81,7 @@ const visibleAlerts = async (page) => {
 const startedAt = new Date().toISOString();
 let context;
 let acceptedTotal = 0;
+let engagementSnapshotsAdded = 0;
 const summary = {
   startedAt,
   mode: headless ? "headless" : "headed",
@@ -74,6 +91,7 @@ const summary = {
   timelineOrderAssumption: "newest_first",
   competitors: [],
   accepted: 0,
+  engagementSnapshotsAdded: 0,
   outOfWindowSkipped: 0
 };
 
@@ -162,6 +180,37 @@ try {
           if (!oldestInWindow || postDate < new Date(oldestInWindow)) oldestInWindow = post.createdAt;
 
           const key = post.trackedCompetitor + ":" + post.id;
+          if (!seenForSnapshotThisRun.has(key)) {
+            seenForSnapshotThisRun.add(key);
+            const snapshotAt = new Date().toISOString();
+            const currentMetrics = post.metrics || {};
+            const previousSnapshot = latestSnapshotByPost.get(key);
+            const metricsChanged = !previousSnapshot ||
+              JSON.stringify(previousSnapshot.metrics || {}) !== JSON.stringify(currentMetrics);
+            const snapshotDue = !previousSnapshot ||
+              (Date.now() - new Date(previousSnapshot.snapshotAt).getTime()) >= engagementSnapshotIntervalHours * 60 * 60 * 1000;
+
+            if (metricsChanged || snapshotDue) {
+              const snapshot = {
+                trackedCompetitor: post.trackedCompetitor,
+                postId: post.id,
+                postUrl: post.url,
+                publishedAt: post.createdAt,
+                metrics: currentMetrics,
+                previousMetrics: previousSnapshot?.metrics || null,
+                snapshotAt,
+                source: "x-visible-frontend",
+                metricSemantics: "counts_visible_at_snapshot_time_not_lifetime_delta"
+              };
+              fs.appendFileSync(snapshotsPath, JSON.stringify(snapshot) + "\n", {
+                encoding: "utf8",
+                mode: 0o600
+              });
+              latestSnapshotByPost.set(key, snapshot);
+              engagementSnapshotsAdded += 1;
+            }
+          }
+
           if (seen.has(key)) {
             knownThisScreen += 1;
             continue;
@@ -233,6 +282,7 @@ try {
   }
 
   summary.accepted = acceptedTotal;
+  summary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   summary.completedAt = new Date().toISOString();
   fs.appendFileSync(runLogPath, JSON.stringify(summary) + "\n", "utf8");
   console.log("\nCollection summary:");
