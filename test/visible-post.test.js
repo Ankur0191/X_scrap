@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate, selectConversationAncestor } from "../src/collector/visible-post.js";
+import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate, isProbableSpamControlLabel, selectConversationAncestor } from "../src/collector/visible-post.js";
 
 test("parses compact engagement counts", () => {
   assert.equal(parseCount("1.2K"), 1200);
@@ -163,4 +163,14 @@ test("explicit reply context is accepted only after the selected root card", () 
     candidateIndex: 0,
     rootIndex: -1
   }), { isReply: false, method: null });
+});
+
+
+test("recognizes X probable-spam expansion labels without matching unrelated controls", () => {
+  assert.equal(isProbableSpamControlLabel("Show probable spam"), true);
+  assert.equal(isProbableSpamControlLabel("Show 2 probable spam replies"), true);
+  assert.equal(isProbableSpamControlLabel(" Show probable spams "), true);
+  assert.equal(isProbableSpamControlLabel("Show more replies"), false);
+  assert.equal(isProbableSpamControlLabel("Probable spam"), false);
+  assert.equal(isProbableSpamControlLabel("Hide probable spam"), false);
 });
