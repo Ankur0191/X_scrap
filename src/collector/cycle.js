@@ -56,7 +56,7 @@ for (const step of steps) {
   const result = spawnSync(node, [step.script, ...step.args], {
     cwd: root,
     stdio: "inherit",
-    env: process.env,
+    env: { ...process.env, X_NONINTERACTIVE: "1" },
     windowsHide: false
   });
   const entry = {
