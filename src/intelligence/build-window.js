@@ -7,14 +7,26 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const args = process.argv.slice(2);
 const daysIndex = args.indexOf("--days");
 const requestedDays = daysIndex >= 0 ? Number(args[daysIndex + 1]) : null;
+const domainIndex = args.indexOf("--domain");
+const domainFilter = domainIndex >= 0 ? String(args[domainIndex + 1] || "").trim().toLowerCase() : null;
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
+const domainByCompetitor = new Map(config.competitors.map((item) => [
+  String(item.username).replace(/^@/, "").toLowerCase(),
+  String(item.domainId || "").toLowerCase()
+]));
 const windowDays = Number.isFinite(requestedDays) && requestedDays > 0
   ? Math.min(requestedDays, 3650)
   : Number(config.collection?.windowDays || 365);
 
 const inputPath = path.join(root, "data/output/posts.jsonl");
-const outputPath = path.join(root, "data/output", "posts-" + windowDays + "d.jsonl");
-const manifestPath = path.join(root, "data/output/window-manifest.json");
+const outputName = domainFilter
+  ? `posts-${domainFilter}-${windowDays}d.jsonl`
+  : `posts-${windowDays}d.jsonl`;
+const outputPath = path.join(root, "data/output", outputName);
+const manifestName = domainFilter
+  ? `window-manifest-${domainFilter}-${windowDays}d.json`
+  : "window-manifest.json";
+const manifestPath = path.join(root, "data/output", manifestName);
 
 if (!fs.existsSync(inputPath)) {
   console.error("No collected posts found at " + inputPath);
@@ -27,6 +39,7 @@ const lines = fs.readFileSync(inputPath, "utf8").split(/\r?\n/);
 const active = [];
 const invalid = [];
 const outsideWindow = [];
+const outsideDomain = [];
 const duplicateIds = new Set();
 const seen = new Set();
 
@@ -49,7 +62,12 @@ for (let index = 0; index < lines.length; index += 1) {
     outsideWindow.push({ line: index + 1, id: post.id, createdAt: post.createdAt });
     continue;
   }
-  const key = String(post.trackedCompetitor).toLowerCase() + ":" + String(post.id);
+  const competitorKey = String(post.trackedCompetitor).replace(/^@/, "").toLowerCase();
+  if (domainFilter && domainByCompetitor.get(competitorKey) !== domainFilter) {
+    outsideDomain.push({ line: index + 1, id: post.id, trackedCompetitor: competitorKey });
+    continue;
+  }
+  const key = competitorKey + ":" + String(post.id);
   if (seen.has(key)) {
     duplicateIds.add(key);
     continue;
@@ -115,10 +133,11 @@ const manifest = {
   },
   source: {
     path: "data/output/posts.jsonl",
-    recordCount: lines.filter((line) => line.trim()).length
+    recordCount: lines.filter((line) => line.trim()).length,
+    domainFilter
   },
   activeDataset: {
-    path: "data/output/posts-" + windowDays + "d.jsonl",
+    path: "data/output/" + outputName,
     recordCount: active.length,
     byCompetitor,
     byPostType,
@@ -127,6 +146,7 @@ const manifest = {
   },
   excluded: {
     outsideWindow: outsideWindow.length,
+    outsideDomain: outsideDomain.length,
     invalid: invalid.length,
     duplicates: duplicateIds.size
   }
