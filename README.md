@@ -81,6 +81,14 @@ npm run collect:threads
 npm run build:conversation
 ```
 
+For ongoing monitoring, run one complete cycle:
+
+```powershell
+npm run collect:cycle
+```
+
+A cycle refreshes the latest competitor timelines, rebuilds the rolling 365-day file, refreshes the conversation queue, scans up to five fairly scheduled thread roots, merges the conversation dataset and runs the audit. The five-root limit is configurable as `collection.monitorThreadRootsPerCycle`.
+
 The conversation collector captures reply cards that the visible interface identifies as replies and links them to the root post. It records partial/visible-end states and unclassified cards. **A visible end is not proof that X exposed every reply**, so never report complete public-reply coverage without a separate validation step. The queue can be resumed; previously completed roots are revisited after the configured refresh interval.
 
 Conversation outputs:
@@ -91,7 +99,18 @@ Conversation outputs:
 - `conversation-365d.jsonl`
 - `conversation-manifest.json`
 
-## 5. Audit data
+## 5. Continuous Windows monitoring
+
+The local cycle runner is `scripts/run-cycle.ps1`. To schedule it, open Windows Task Scheduler and create a task with:
+
+1. Trigger: **At log on** for your Windows user, repeat every 60 minutes.
+2. Action: start `powershell.exe` with arguments `-NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\Dell\\Desktop\\X\\X_scrap\\scripts\\run-cycle.ps1"` (adjust the repository path if needed).
+3. Security: choose **Run only when the user is logged on**. The current collector uses headed Chromium and the existing local browser profile.
+4. Settings: do not start a second instance when the previous cycle is still running.
+
+Keep the PC awake and the user session active during collection. The log is written to `data/output/scheduled-monitor.log`. The suggested 60-minute interval is configurable; the actual interval should follow the written X authorisation.
+
+## 6. Audit data
 
 ```powershell
 npm run audit:data
@@ -99,7 +118,7 @@ npm run audit:data
 
 The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution.
 
-## 6. Local GLiNER2.5 extraction
+## 7. Local GLiNER2.5 extraction
 
 The first NLP layer uses the multilingual `fastino/gliner2.5-multi-v1` checkpoint. It extracts entity spans, topic/signal labels, complaint categories, service categories, impact themes and candidate relations. See [nlp-engine/README.md](nlp-engine/README.md).
 
@@ -121,7 +140,7 @@ python nlp-engine\scripts\analyze_jsonl.py --limit 10
 
 The script automatically selects the TIC or Aspire taxonomy using each competitor's `domainId`. Remove `--limit 10` to process all available conversation records. Output: `data/output/enriched-posts.jsonl`.
 
-## 7. Strategic reasoning and JSON outputs
+## 8. Strategic reasoning and JSON outputs
 
 GLiNER2.5 is the structured extraction layer, not the complete reasoning engine. A separate evidence-grounded LLM stage will synthesize recurring complaints, root-cause hypotheses, regions, business impact, competitor gaps, launches and actionables. Each claim must cite source post/reply IDs and exact evidence; hypotheses must be labelled as hypotheses.
 
