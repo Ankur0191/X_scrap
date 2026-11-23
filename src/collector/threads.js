@@ -110,7 +110,8 @@ try {
       trackedCompetitor: tracked,
       status: "partial",
       completeness: "not_verified",
-      replyCount: 0,
+      newRepliesCaptured: 0,
+      visibleReplyCount: 0,
       unclassifiedConversationCards: 0,
       checkedAt: new Date().toISOString()
     };
@@ -195,7 +196,8 @@ try {
       }
 
       unclassifiedForRoot += unclassifiedThisScreen;
-      status.replyCount = newRepliesForRoot;
+      status.newRepliesCaptured = newRepliesForRoot;
+      status.visibleReplyCount = visibleReplyIds.size;
       status.unclassifiedConversationCards = unclassifiedForRoot;
 
       // Expand only the explicit "Show more replies" control when it is visible.
@@ -238,7 +240,7 @@ try {
       status.status = "root_post_not_visible";
       status.completeness = "partial";
     }
-    status.replyCount = newRepliesForRoot;
+    status.newRepliesCaptured = newRepliesForRoot;
     status.visibleReplyCount = visibleReplyIds.size;
     status.unclassifiedConversationCards = unclassifiedForRoot;
     status.checkedAt = new Date().toISOString();
