@@ -177,13 +177,13 @@ Possible opportunity signals:
 
 ## Target JSON outputs
 
-1. `posts-365d.jsonl`: in-window profile source records.
+1. `posts-365d.jsonl`: in-window competitor profile records.
 2. `thread-replies.jsonl`: visible public replies linked to conversation root IDs.
-3. `conversation-365d.jsonl`: deduplicated profile records and thread replies, ready for NLP.
-4. `enriched-posts.jsonl`: per-record entities, classifications, validated/candidate relations and extraction provenance.
-3. `intelligence-events.jsonl`: complaint, launch, partnership, regulatory, product and incident events.
-4. `entity-graph.jsonl`: canonical organisations, services, products, regions, issues and relation edges.
-5. `competitor-brief.json`: 365-day executive intelligence brief with trends, gaps, opportunities and actionables.
+3. `conversation-365d.jsonl`: deduplicated profile records and public thread replies, ready for NLP.
+4. `enriched-posts.jsonl`: per-record entities, classifications, candidate/validated relations and extraction provenance.
+5. `signal-clusters.json`: recurring complaint/service clusters, event clusters, monthly counts and supporting evidence.
+6. `preliminary-competitor-brief.json`: candidate opportunities and analyst validation steps.
+7. `intelligence-events.jsonl`, `entity-graph.jsonl` and `competitor-brief.json`: planned final reasoning/graph outputs once the second-stage analyst model is benchmarked and enabled.
 
 See:
 - `schemas/intelligence-event.schema.json`
@@ -191,6 +191,7 @@ See:
 - `config/intelligence/ontology.json`
 - `config/intelligence/tic.json`
 - `config/intelligence/aspire.json`
+- `nlp-engine/prompts/strategic-analyst-system.md`
 
 ## Build sequence
 
