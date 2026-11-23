@@ -48,7 +48,7 @@ let checkpointState = { version: 1, entries: {} };
 if (fs.existsSync(checkpointPath)) {
   try {
     const saved = JSON.parse(fs.readFileSync(checkpointPath, "utf8"));
-    if (saved && typeof saved.entries === "object") checkpointState = saved;
+    if (saved && saved.entries && typeof saved.entries === "object") checkpointState = saved;
   } catch {
     console.warn("Backfill checkpoint file is invalid; starting without resume checkpoints.");
   }
