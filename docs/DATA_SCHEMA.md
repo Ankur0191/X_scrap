@@ -1,28 +1,39 @@
 # Normalized visible-post schema
 
-Each line in `data/output/posts.jsonl` is one JSON record.
+Each line in `data/output/posts.jsonl` is one collected source record.
 
 | Field | Type | Meaning |
 |---|---|---|
 | id | string | X post ID |
-| trackedCompetitor | string | Competitor profile from which the post was collected |
-| authorUsername | string | Original author shown on the visible post |
-| text | string | Visible primary post text; may be empty for media-only posts |
-| quotedText | string[] | Separately visible quoted-post text, when detected |
-| createdAt | ISO-8601 string | Visible post timestamp normalized to UTC |
-| url | string | Canonical post URL |
-| metrics | object | Visible replies, reposts, likes and views; unavailable values are null |
-| media | object[] | Visible image alt/display URL and video presence metadata |
-| isReply | boolean | Whether visible card text indicates a reply |
-| isRepost | boolean | Whether visible social context indicates a repost in the tracked profile timeline |
-| isQuote | boolean | Whether a quoted post was detected in the card |
-| isPinned | boolean | Whether visible card text indicates a pinned post |
+| trackedCompetitor | string | Target account whose profile or thread led to the record |
+| authorUsername | string | Account shown as the post author |
+| text | string | Visible primary post text |
+| quotedText | string[] | Visible quoted content, when detected |
+| quotedPostId | string or null | Quoted post ID, when the visible card exposes it |
+| relatedPosts | object[] | Other visible status links associated with the card |
+| createdAt | ISO-8601 string | Publication timestamp normalised to UTC |
+| url | string | Visible post permalink |
+| hashtags | object[] | Explicit hashtags from primary text, including normalised label and text offsets |
+| mentions | object[] | Explicit @mentions from primary text |
+| quotedHashtags | object[] | Explicit hashtags in separately visible quoted text |
+| quotedMentions | object[] | Explicit @mentions in separately visible quoted text |
+| relationships | object[] | Candidate edges such as uses_hashtag, mentions_account, quotes and reposts |
+| metrics | object | Visible replies, reposts, likes and views; unavailable values remain null |
+| media | object[] | Visible image alt/display URL and video-presence metadata |
+| isReply | boolean | Best-effort reply indicator from visible UI context |
+| isRepost | boolean | Visible repost social context |
+| isQuote | boolean | A quoted post was detected in the card |
+| isPinned | boolean | Best-effort visible pinned indicator |
+| conversationRootId | string or null | Root post for a third-party conversation reply; not populated by profile timeline collection yet |
+| parentPostId | string or null | Direct parent when explicitly captured |
 | postType | string | post, reply, repost or quote |
-| timelineView | string | posts or with_replies |
-| socialContext | string | Visible context label, if present |
+| timelineView | string | posts or with_replies; discovery location, not post type |
+| socialContext | string | Visible context label |
 | source | string | Acquisition provenance |
 | ingestedAt | ISO-8601 string | Local collection time |
 
 Deduplication key: `trackedCompetitor:id`.
 
-Do not treat missing engagement counts as zero. The data represents what was displayed at collection time, not necessarily the current lifetime totals. Do not infer private or sensitive facts about people from post content.
+The `posts-365d.jsonl` materialisation adds hashtags and @mentions derived from legacy source text without rewriting the raw `posts.jsonl`.
+
+Do not treat missing engagement counts as zero. These values describe what was visible at collection time, not lifetime totals. Do not infer private or sensitive facts about people from post content. Thread replies from other public accounts require the separate conversation collector and should not be marked complete until thread coverage is validated.
