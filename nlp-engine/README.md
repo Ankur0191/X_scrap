@@ -66,6 +66,22 @@ The processor automatically chooses `tic` or `aspire_lifestyle` using each compe
 
 The script resumes by skipping competitor/post IDs already present in the output file.
 
+## Aggregate complaint and event patterns
+
+After enrichment finishes:
+
+```powershell
+python nlp-engine\scripts\aggregate_signals.py
+```
+
+It creates:
+- `data/output/signal-clusters.json`
+- `data/output/preliminary-competitor-brief.json`
+
+Clusters include complaint/service categories, public-author counts, month-by-month volume, geographic text mentions and source evidence. Geographic mentions are not treated as complainant regions. Candidate gaps remain hypotheses and include investigation steps.
+
+The final reasoning instructions are in `nlp-engine/prompts/strategic-analyst-system.md`. They require the downstream model to cite post/reply IDs and exact source evidence, distinguish official claims from customer reports, and separate observed impact from hypotheses.
+
 ## Files
 
 - Input: `data/output/conversation-365d.jsonl`
