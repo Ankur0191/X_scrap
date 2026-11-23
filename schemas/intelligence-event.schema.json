@@ -119,7 +119,7 @@
           "quote": { "type": "string" },
           "start": { "type": ["integer", "null"], "minimum": 0 },
           "end": { "type": ["integer", "null"], "minimum": 0 },
-          "evidenceRole": { "type": "string", "enum": ["direct_fact", "customer_claim", "organization_claim", "model_interpretation", "counter_evidence"] }
+          "evidenceRole": { "type": "string", "enum": ["direct_fact", "customer_claim", "public_account_claim", "organization_claim", "model_interpretation", "counter_evidence"] }
         },
         "additionalProperties": false
       }
