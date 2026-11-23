@@ -61,7 +61,11 @@
         "assurance",
         "sustainability"
       ],
-      "domainId": "tic"
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://www.sgs.com/en-in/news/2020/07/ginger-hotels-partners-with-sgs-to-implement-operational-assessment",
+      "verificationNotes": "SGS company newsroom lists Twitter/X @SGS_SA; established collector profile used in prior validation."
     },
     {
       "username": "bureauveritas",
@@ -77,10 +81,14 @@
         "sustainability",
         "quality"
       ],
-      "domainId": "tic"
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://aero.bureauveritas.com/newsroom/bureau-veritas-supports-wings-aid-scaling-drone-based-humanitarian-logistics-east-africa",
+      "verificationNotes": "Bureau Veritas company newsroom explicitly identifies X @bureauveritas."
     },
     {
-      "username": "Intertek",
+      "username": "intertek",
       "displayName": "Intertek",
       "enabled": true,
       "priority": 1,
@@ -93,7 +101,160 @@
         "quality",
         "sustainability"
       ],
-      "domainId": "tic"
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "profile_exists_and_collected",
+      "verificationSourceUrl": "https://x.com/Intertek",
+      "verificationNotes": "Public profile identity and intertek.com bio match; successfully collected posts and public replies in the local visible-frontend validation."
+    },
+    {
+      "username": "applus",
+      "displayName": "Applus+",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/applus",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "vehicle testing",
+        "industrial services"
+      ],
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://www.applus.com/global/en/",
+      "verificationNotes": "Applus+ company-owned social media reference lists Twitter/X @applus; profile and bio align with applus.com."
+    },
+    {
+      "username": "cotecna",
+      "displayName": "Cotecna",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/cotecna",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "trade assurance",
+        "food safety"
+      ],
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://www.cotecna.com/media/1rlnt3ap/agri-brazil-services-brochure-en_web_2024.pdf",
+      "verificationNotes": "Cotecna-owned 2024 corporate brochure lists X @cotecna."
+    },
+    {
+      "username": "DEKRA_Konzern",
+      "displayName": "DEKRA",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/DEKRA_Konzern",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "vehicle testing",
+        "industrial safety"
+      ],
+      "domainId": "tic",
+      "accountScope": "global",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://dekraprod-media.e-spirit.cloud/cf72a770-49c2-488b-9f1a-c4359f41c8e5/preview/media/en-socialmedia-styleguide-july-2023.pdf",
+      "verificationNotes": "DEKRA's official social media style guide identifies @DEKRA_Konzern; profile metadata matches the group brand. Regional @DEKRA_sa is not substituted."
+    },
+    {
+      "username": "MISTRASGroup",
+      "displayName": "MISTRAS Group",
+      "enabled": true,
+      "priority": 2,
+      "profileUrl": "https://x.com/MISTRASGroup",
+      "tags": [
+        "testing",
+        "inspection",
+        "NDT",
+        "asset integrity",
+        "industrial services"
+      ],
+      "domainId": "tic",
+      "accountScope": "global_candidate",
+      "verificationStatus": "profile_exists",
+      "verificationSourceUrl": "https://www.instalker.org/MISTRASGroup",
+      "verificationNotes": "Public profile exists with MISTRAS name, asset-protection description and mistrasgroup.com domain. No first-party X link located on mistrasgroup.com; included as a clearly marked profile-match candidate."
+    },
+    {
+      "username": "tuvcom_presse",
+      "displayName": "TÜV Rheinland — Corporate Press",
+      "enabled": true,
+      "priority": 1,
+      "profileUrl": "https://x.com/tuvcom_presse",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "assurance",
+        "corporate news"
+      ],
+      "domainId": "tic",
+      "accountScope": "corporate_press",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://tuv.com/de-en/imprint",
+      "verificationNotes": "Current TÜV Rheinland legal notice explicitly lists this X presence; account scope is corporate press."
+    },
+    {
+      "username": "tuvcom_products",
+      "displayName": "TÜV Rheinland — Product Safety",
+      "enabled": true,
+      "priority": 2,
+      "profileUrl": "https://x.com/tuvcom_products",
+      "tags": [
+        "product safety",
+        "consumer products",
+        "testing",
+        "certification"
+      ],
+      "domainId": "tic",
+      "accountScope": "product_safety",
+      "verificationStatus": "official_link_verified",
+      "verificationSourceUrl": "https://www.tuv.com/press/en/social-media/",
+      "verificationNotes": "TÜV Rheinland social media page lists this account; account scope is product safety, not the general corporate feed."
+    },
+    {
+      "username": "tuvsudSASIA",
+      "displayName": "TÜV SÜD — South Asia",
+      "enabled": true,
+      "priority": 2,
+      "profileUrl": "https://x.com/tuvsudSASIA",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "sustainability",
+        "South Asia"
+      ],
+      "domainId": "tic",
+      "accountScope": "regional_south_asia",
+      "verificationStatus": "regional_only",
+      "verificationSourceUrl": "https://www.tuvsud.com/en-in/-/media/regions/in/pdf-files/brochures-and-infosheet/sustainability-services-brochure-2024.pdf",
+      "verificationNotes": "Official TÜV SÜD South Asia brochure explicitly lists Twitter/X @tuvsudSASIA. Regional account only; TÜV SÜD global social page does not currently list X."
+    },
+    {
+      "username": "kiwa_global",
+      "displayName": "Kiwa — unverified X candidate",
+      "enabled": false,
+      "priority": 3,
+      "profileUrl": "https://x.com/kiwa_global",
+      "tags": [
+        "testing",
+        "inspection",
+        "certification"
+      ],
+      "domainId": "tic",
+      "accountScope": "global_candidate",
+      "verificationStatus": "candidate",
+      "verificationSourceUrl": "https://radar-innovation.dealroom.co/companies/kiwa_1_2",
+      "verificationNotes": "Handle appears in a company-data directory, but no first-party Kiwa confirmation was located. Disabled until official ownership is verified."
     }
   ]
 }
