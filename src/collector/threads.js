@@ -5,7 +5,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { launchPersistentSession, inspectSignedInState } from "../auth/session.js";
 import { profileDir } from "../auth/profile.js";
-import { extractVisiblePost, detectStopCondition, classifyVisibleThreadReply, selectConversationAncestor } from "./visible-post.js";
+import { extractVisiblePost, detectStopCondition, classifyVisibleThreadReply, selectConversationAncestor, isProbableSpamControlLabel } from "./visible-post.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
@@ -149,6 +149,34 @@ eligibleCandidates.sort((a, b) => {
 const eligible = eligibleCandidates.slice(0, limit);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function expandVisibleProbableSpamSections(page) {
+  let expanded = 0;
+  // A thread page can expose more than one collapsed spam group. Keep this
+  // bounded in case the UI leaves a stale control mounted after the click.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidates = page.getByText(/probable\s+spams?/i);
+    const count = await candidates.count();
+    let clicked = false;
+    for (let index = 0; index < count; index += 1) {
+      const candidate = candidates.nth(index);
+      try {
+        if (!(await candidate.isVisible({ timeout: 200 }))) continue;
+        const label = await candidate.innerText();
+        if (!isProbableSpamControlLabel(label)) continue;
+        await candidate.click({ timeout: 3000 });
+        expanded += 1;
+        clicked = true;
+        await wait(850);
+        break;
+      } catch {
+        // The candidate may be a stale/hidden text node or a non-interactive label.
+      }
+    }
+    if (!clicked) break;
+  }
+  return expanded;
+}
 const ask = async (question) => {
   const rl = readline.createInterface({ input, output });
   try { return (await rl.question(question)).trim(); }
@@ -167,6 +195,7 @@ const runSummary = {
   rootsSelected: eligible.length,
   diagnosticAnchorOutsideRootQueue,
   ancestorsAdded: 0,
+  probableSpamSectionsExpanded: 0,
   roots: []
 };
 
@@ -205,6 +234,7 @@ try {
       unclassifiedConversationCards: 0,
       ancestorCandidatesFound: 0,
       newAncestorsCaptured: 0,
+      probableSpamSectionsExpanded: 0,
       checkedAt: new Date().toISOString()
     };
     console.log("\nThread " + tracked + ":" + rootId);
@@ -232,6 +262,16 @@ try {
     let visibleMoreReplyControl = false;
 
     for (let scroll = 0; scroll <= maxScrolls; scroll += 1) {
+      // X may hide replies behind its "Show probable spam" control. Expand
+      // these sections before counting/extracting cards so reply detection
+      // sees the newly revealed cards on this same screen.
+      const probableSpamExpandedThisScreen = await expandVisibleProbableSpamSections(page);
+      if (probableSpamExpandedThisScreen > 0) {
+        status.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
+        runSummary.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
+        console.log("Expanded " + probableSpamExpandedThisScreen + " probable-spam section(s) before reply extraction.");
+      }
+
       const articles = page.locator('article[data-testid="tweet"]');
       const count = await articles.count();
       let newThisScreen = 0;
@@ -391,7 +431,7 @@ try {
         " new replies, " + unclassifiedThisScreen + " unclassified cards."
       );
 
-      if (newThisScreen === 0 && !visibleMoreReplyControl) stableScreens += 1;
+      if (newThisScreen === 0 && !visibleMoreReplyControl && probableSpamExpandedThisScreen === 0) stableScreens += 1;
       else stableScreens = 0;
 
       if (stableScreens >= stableScreensRequired) {
