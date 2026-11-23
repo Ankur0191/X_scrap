@@ -136,6 +136,8 @@ def main() -> int:
         complaint_types = as_labels(classifications.get("complaint_type"))
         service_categories = as_labels(classifications.get("service_category"))
         impact_types = as_labels(classifications.get("impact_type"))
+        source_voice_candidates = as_labels(classifications.get("source_voice"))
+        journey_stage_candidates = as_labels(classifications.get("journey_stage"))
 
         if signal_types or complaint_types or service_categories or impact_types:
             classified_records += 1
@@ -160,7 +162,9 @@ def main() -> int:
             "sentiment": sentiment_label,
             "text": text,
             "geographicMentions": geographic,
-            "sourceRole": "external_public_account" if author != competitor else "competitor_published_content"
+            "sourceRole": "external_public_account" if author != competitor else "competitor_published_content",
+            "sourceVoiceCandidates": source_voice_candidates,
+            "journeyStageCandidates": journey_stage_candidates
         }
 
         for complaint_type in complaint_types:
@@ -207,6 +211,8 @@ def main() -> int:
             "complaintType": items[0]["complaintType"],
             "serviceCategory": items[0]["serviceCategory"],
             "impactCategoriesMentioned": sorted({v for item in items for v in item.get("impactTypes", [])}),
+            "sourceVoiceCandidates": sorted({v for item in items for v in item.get("sourceVoiceCandidates", [])}),
+            "journeyStagesMentioned": sorted({v for item in items for v in item.get("journeyStageCandidates", [])}),
             "volume": len(items),
             "uniquePublicAuthors": len(authors),
             "sentimentDistribution": dict(sentiment),
@@ -262,6 +268,8 @@ def main() -> int:
             "monthlyVolume": [{"month": month, "count": count} for month, count in sorted(months.items())],
             "serviceCategories": sorted({label for item in items for label in item.get("serviceCategories", [])}),
             "impactCategoriesMentioned": sorted({label for item in items for label in item.get("impactTypes", [])}),
+            "sourceVoiceCandidates": sorted({label for item in items for label in item.get("sourceVoiceCandidates", [])}),
+            "journeyStagesMentioned": sorted({label for item in items for label in item.get("journeyStageCandidates", [])}),
             "evidenceIds": [item["sourcePostId"] for item in items],
             "evidence": [
                 {
