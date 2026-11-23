@@ -44,6 +44,7 @@ export function normalizePost(input) {
     parentPostId: input.parentPostId ? String(input.parentPostId) : null,
     replyingToUsername: input.replyingToUsername ? String(input.replyingToUsername).toLowerCase() : null,
     isThreadReply: Boolean(input.isThreadReply),
+    replyDetectionMethod: input.replyDetectionMethod ? String(input.replyDetectionMethod) : null,
     postType: input.postType ? String(input.postType) : "post",
     timelineView: input.timelineView ? String(input.timelineView) : null,
     socialContext: input.socialContext ? String(input.socialContext) : "",
