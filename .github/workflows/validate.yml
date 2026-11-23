@@ -1,4 +1,4 @@
-name: Validate collector
+name: Validate collector and intelligence schemas
 
 on:
   push:
@@ -20,10 +20,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Node dependencies
         run: npm install --ignore-scripts
       - name: Check JavaScript syntax
         run: |
           find src test -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Check Python syntax
+        run: python -m compileall -q nlp-engine
+      - name: Validate JSON configuration and schemas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for folder in (Path("config"), Path("schemas")):
+              for file in folder.rglob("*.json"):
+                  with file.open(encoding="utf-8") as handle:
+                      json.load(handle)
+                  print("Valid JSON:", file)
+          PY
       - name: Run unit tests
         run: npm test
