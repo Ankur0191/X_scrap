@@ -264,6 +264,14 @@
       "to": [
         "social_post"
       ]
+    },
+    "reposts": {
+      "from": [
+        "x_account"
+      ],
+      "to": [
+        "social_post"
+      ]
     }
   },
   "sourceVoiceTypes": [
