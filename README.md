@@ -8,6 +8,8 @@ A local-first collection and evidence extraction pipeline for TIC and Aspire Lif
 |---|---|---|
 | Ten Technologies Group (formerly Ten Lifestyle Group) | `tenlifestyle` | `aspire_lifestyle` |
 | SGS | `SGS_SA` | `tic` |
+| Bureau Veritas | `bureauveritas` | `tic` |
+| Intertek | `Intertek` | `tic` |
 
 Add more organisations in `config/competitors.json` and assign a `domainId`. The engine is designed for TIC businesses, payment networks, banks, card issuers, travel, hospitality, loyalty and concierge providers.
 
@@ -31,6 +33,15 @@ Latest-first incremental runs:
 ```powershell
 npm run collect:ten
 npm run collect:sgs
+npm run collect:bv
+npm run collect:intertek
+```
+
+Targeted 365-day backfills for the two additional TIC accounts (run one at a time):
+
+```powershell
+npm run backfill:bv:year
+npm run backfill:intertek:year
 ```
 
 One-time backfill of all enabled competitors across the last 365 elapsed days:
