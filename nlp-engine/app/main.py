@@ -35,6 +35,8 @@ class AnalyzeRequest(BaseModel):
     source_url: str | None = Field(default=None, max_length=2048)
     created_at: str | None = Field(default=None, max_length=64)
     conversation_root_id: str | None = Field(default=None, max_length=128)
+    parent_post_id: str | None = Field(default=None, max_length=128)
+    is_thread_reply: bool = False
 
 
 class BatchAnalyzeRequest(BaseModel):
@@ -151,7 +153,9 @@ def analyze_one(item: AnalyzeRequest) -> dict[str, Any]:
             "authorUsername": item.author_username,
             "sourceUrl": item.source_url,
             "createdAt": item.created_at,
-            "conversationRootId": item.conversation_root_id
+            "conversationRootId": item.conversation_root_id,
+            "parentPostId": item.parent_post_id,
+            "isThreadReply": item.is_thread_reply
         },
         "domainId": item.domain_id,
         "extraction": {
