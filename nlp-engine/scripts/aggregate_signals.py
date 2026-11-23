@@ -138,6 +138,8 @@ def main() -> int:
         impact_types = as_labels(classifications.get("impact_type"))
         source_voice_candidates = as_labels(classifications.get("source_voice"))
         journey_stage_candidates = as_labels(classifications.get("journey_stage"))
+        customer_segment_candidates = as_labels(classifications.get("customer_segment"))
+        industry_vertical_candidates = as_labels(classifications.get("industry_vertical"))
 
         if signal_types or complaint_types or service_categories or impact_types:
             classified_records += 1
@@ -164,7 +166,9 @@ def main() -> int:
             "geographicMentions": geographic,
             "sourceRole": "external_public_account" if author != competitor else "competitor_published_content",
             "sourceVoiceCandidates": source_voice_candidates,
-            "journeyStageCandidates": journey_stage_candidates
+            "journeyStageCandidates": journey_stage_candidates,
+            "customerSegmentCandidates": customer_segment_candidates,
+            "industryVerticalCandidates": industry_vertical_candidates
         }
 
         for complaint_type in complaint_types:
@@ -213,6 +217,8 @@ def main() -> int:
             "impactCategoriesMentioned": sorted({v for item in items for v in item.get("impactTypes", [])}),
             "sourceVoiceCandidates": sorted({v for item in items for v in item.get("sourceVoiceCandidates", [])}),
             "journeyStagesMentioned": sorted({v for item in items for v in item.get("journeyStageCandidates", [])}),
+            "customerSegmentCandidates": sorted({v for item in items for v in item.get("customerSegmentCandidates", [])}),
+            "industryVerticalCandidates": sorted({v for item in items for v in item.get("industryVerticalCandidates", [])}),
             "volume": len(items),
             "uniquePublicAuthors": len(authors),
             "sentimentDistribution": dict(sentiment),
@@ -270,6 +276,8 @@ def main() -> int:
             "impactCategoriesMentioned": sorted({label for item in items for label in item.get("impactTypes", [])}),
             "sourceVoiceCandidates": sorted({label for item in items for label in item.get("sourceVoiceCandidates", [])}),
             "journeyStagesMentioned": sorted({label for item in items for label in item.get("journeyStageCandidates", [])}),
+            "customerSegmentCandidates": sorted({label for item in items for label in item.get("customerSegmentCandidates", [])}),
+            "industryVerticalCandidates": sorted({label for item in items for label in item.get("industryVerticalCandidates", [])}),
             "evidenceIds": [item["sourcePostId"] for item in items],
             "evidence": [
                 {
