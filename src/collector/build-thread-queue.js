@@ -42,7 +42,7 @@ const domainByCompetitor = new Map(config.competitors.map((item) => [
 ]));
 const queue = [...unique.values()]
   .map((item) => ({ ...item, domainId: domainByCompetitor.get(item.trackedCompetitor) || null }))
-  .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 fs.writeFileSync(queuePath, queue.map((item) => JSON.stringify(item)).join("\n") + (queue.length ? "\n" : ""), {
   encoding: "utf8",
