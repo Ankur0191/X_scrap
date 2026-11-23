@@ -9,7 +9,7 @@ import httpx
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Run local GLiNER2.5 extraction over the rolling-window JSONL dataset.")
-    parser.add_argument("--input", default="data/output/posts-365d.jsonl")
+    parser.add_argument("--input", default="data/output/conversation-365d.jsonl")
     parser.add_argument("--output", default="data/output/enriched-posts.jsonl")
     parser.add_argument("--endpoint", default="http://127.0.0.1:8010/v1/analyze")
     parser.add_argument("--domain", choices=["tic", "aspire_lifestyle"], default=None,
@@ -77,7 +77,9 @@ def main() -> int:
                         "text": post.get("text") or " ",
                         "source_url": post.get("url"),
                         "created_at": post.get("createdAt"),
-                        "conversation_root_id": post.get("conversationRootId")
+                        "conversation_root_id": post.get("conversationRootId"),
+                        "parent_post_id": post.get("parentPostId"),
+                        "is_thread_reply": bool(post.get("isThreadReply"))
                     }
                     response = client.post(args.endpoint, json=payload)
                     response.raise_for_status()
