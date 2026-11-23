@@ -32,6 +32,11 @@ export function selectConversationAncestor({
   };
 }
 
+export function isProbableSpamControlLabel(value) {
+  const label = String(value || "").replace(/\\s+/g, " ").trim();
+  return /^show\\b.*\\bprobable\\s+spams?\\b/i.test(label);
+}
+
 export function isThreadRootCandidate(post) {
   if (!post || typeof post !== "object") return false;
   const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
