@@ -78,8 +78,20 @@ def build_classification_schema(domain_id: str) -> dict[str, Any]:
         profile.get("eventTypes", []) +
         ["customer_complaint", "customer_praise", "customer_question", "customer_request", "other"]
     ))
+    source_voice_types = ONTOLOGY.get("sourceVoiceTypes", ["customer_or_member", "employee_or_former_employee", "partner_or_supplier", "competitor", "regulator_or_public_authority", "journalist_or_media", "industry_association", "investor_or_analyst", "general_public", "unknown"])
+    journey_stages = profile.get("journeyStages", ["unknown"])
     return {
         "sentiment": ["positive", "negative", "neutral", "mixed"],
+        "source_voice": {
+            "labels": source_voice_types,
+            "multi_label": True,
+            "cls_threshold": 0.35
+        },
+        "journey_stage": {
+            "labels": journey_stages,
+            "multi_label": True,
+            "cls_threshold": 0.35
+        },
         "signal_type": {
             "labels": event_labels,
             "multi_label": True,
