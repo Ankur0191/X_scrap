@@ -1,55 +1,75 @@
 # X Competitor Intelligence Collector
 
-A local-first project scaffold for ingesting **authorized** X data into a normalized competitor-intelligence dataset.
+Local-first, headed Chromium collector for the visible X frontend, restricted to the competitor accounts and collection scope covered by your written X authorization.
 
-> Compliance boundary: X's Terms prohibit scraping without prior written permission, and X's Automation Rules prohibit scripting the X website. This project therefore does not automate X website collection, bypass access controls, or evade rate limits. Use an authorized X API integration, an X-provided export, or a source for which you have explicit permission.
+## Authorization boundary
 
-## What is included
+Use this collector only within the exact scope of X's written permission. X's Terms include an express-written-permission exception for scraping, while its separate automation rules describe restrictions on scripting the X website. Confirm that the approval explicitly covers this temporary visible-frontend browser automation. This project does not access private endpoints, call undocumented APIs, inspect internal application state, intercept network requests, defeat CAPTCHA, evade rate limits, rotate proxies, or use stealth/fingerprint spoofing.
 
-- Persistent local Chromium profile for a user-controlled, manual browser session (diagnostics only).
-- Authentication preflight that reports whether a saved local profile exists and whether an X page appears signed in. It does not export, copy, or reuse X credentials.
-- JSON configuration for selective competitor accounts.
-- A normalized JSONL ingestion interface for authorized exports / permitted sources.
-- Deduplication, source attribution, structured logs, and tests.
+The collector reads rendered timeline cards through Playwright locators and navigates using normal page URLs and scrolling. It is not a general-purpose X crawler.
 
-## Quick start
+## Current targets
+
+- `tenlifestyle` — Ten Technologies Group (formerly Ten Lifestyle Group)
+- `SGS_SA` — SGS
+
+Edit `config/competitors.json` to enable/disable accounts and tune conservative collection limits.
+
+## Setup
 
 Requires Node.js 20+.
 
 ```bash
 npm install
 npx playwright install chromium
-npm run auth:check
 npm run auth:setup
-npm run ingest:sample
+npm run auth:check
 npm test
 ```
 
-### Local browser session
+The persistent Chromium profile lives in `.local/browser-profile/`. Sign in manually in the visible browser. Passwords, cookies and verification codes are never written to project files. The profile directory is excluded from Git; do not copy it to shared runners or commit it.
 
-`npm run auth:setup` opens Chromium in headed mode at X. Sign in manually if you need to inspect your own account; close the browser when finished. The browser profile is saved under `.local/browser-profile/` and is git-ignored. This profile is not a scraping credential store and the project does not extract cookies or storage state from it.
+## Collect
 
-`npm run auth:check` checks whether the profile directory exists and opens a read-only headed diagnostic session. A visible sign-in prompt may be shown if the page is not signed in. X can change its UI at any time, so the detector is intentionally conservative and must not be used as an authorization bypass.
-
-## Competitors
-
-Edit `config/competitors.json`. Store canonical usernames without the @ symbol and set `enabled` to true only for accounts you are authorized to monitor.
-
-## Authorized ingestion
-
-Place a normalized JSON array or JSONL file in `data/inbox/` and run:
+Latest-first scan (headed Chromium by default):
 
 ```bash
-npm run ingest -- --input data/inbox/posts.jsonl
+npm run collect
 ```
 
-Required fields: `id`, `authorUsername`, `text`, `createdAt`, `url`. Optional fields include `metrics`, `language`, `media`, and `source`. Records are filtered to enabled competitor usernames and deduplicated by post ID. Output is appended to `data/output/posts.jsonl`.
+Scan one competitor:
 
-See `docs/DATA_SCHEMA.md` and `docs/OPERATIONS.md`.
+```bash
+node src/collector/run.js --account tenlifestyle
+node src/collector/run.js --account SGS_SA
+```
 
-## Security
+Historical backfill through the available timeline, subject to the configured 250-scroll safety bound:
 
-- Never commit browser profiles, cookies, tokens, exports, or collected data.
-- Do not upload credentials to GitHub Actions, shared runners, or issue trackers.
-- Do not attempt to defeat CAPTCHA, MFA, rate limits, login checks, or platform controls.
-- Use least-privilege credentials only for supported and authorized integrations.
+```bash
+npm run collect:all
+```
+
+Output:
+- `data/output/posts.jsonl` — append-only normalized visible post records.
+- `data/output/collection-runs.jsonl` — run summaries and stop reasons.
+
+The collector scans the Posts and Replies tabs. It deduplicates by tracked competitor plus post ID, so a post present in both views is stored once. Metrics and media metadata are captured only when visible in the rendered card. A metric not shown by X remains null.
+
+## Authentication lifecycle
+
+`npm run auth:check` opens the persistent browser and checks the actual signed-in UI state. Cookie expiry metadata alone is not reliable proof of a valid session. If signed out, complete login manually. MFA, CAPTCHA and account security checks must be completed by the account owner; the collector stops rather than bypassing them.
+
+Never run two jobs against the same browser profile at once.
+
+## Headless mode
+
+Headed mode is the default. Headless mode is disabled in configuration until the written approval is confirmed to cover it. Do not enable it merely to avoid platform challenges or account safeguards.
+
+## January 15, 2027 API transition
+
+The intended transition date is recorded in config. When X provides the API credentials and applicable access terms, replace the UI collector with the officially supported API adapter. Keep the common normalized schema so historical data and the Rivalmap pipeline remain compatible.
+
+## Data handling
+
+Store collected data locally, restrict access to the output folder, and apply retention/deletion requirements from the written authorization. Do not enrich posts with private personal data. Preserve source URLs, timestamps, tracked competitor and collection provenance.
