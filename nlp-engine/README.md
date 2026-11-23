@@ -9,7 +9,7 @@ This service extracts named entities, domain-specific signal labels, complaint c
 - Parameters: 287M
 - Purpose: multilingual extraction and classification for globally distributed TIC and Aspire sources.
 
-The official model card recommends `AutoExtractor` for GLiNER2.5. The model supports entity spans, multi-label classification and relation extraction. See https://huggingface.co/fastino/gliner2.5-multi-v1.
+The official model card recommends `AutoExtractor` for GLiNER2.5. The model supports entity spans, multi-label classification and relation extraction locally. See https://huggingface.co/fastino/gliner2.5-multi-v1.
 
 ## Windows setup
 
@@ -28,7 +28,7 @@ The first model load downloads weights from Hugging Face. It can run on CPU; if 
 $env:GLINER_DEVICE = "cpu"
 ```
 
-To select a different supported model checkpoint:
+To select another supported checkpoint:
 
 ```powershell
 $env:GLINER_MODEL_ID = "fastino/gliner2.5-base-v1"
@@ -48,9 +48,9 @@ Health check:
 Invoke-RestMethod http://127.0.0.1:8010/health
 ```
 
-## Process a small sample
+## Process a sample
 
-Build the rolling-window file first:
+Build the active 365-day materialisation first:
 
 ```powershell
 npm run build:window
@@ -59,17 +59,19 @@ npm run build:window
 In another terminal, with the Python virtual environment activated:
 
 ```powershell
-python nlp-engine\scripts\analyze_jsonl.py --domain tic --limit 10
+python nlp-engine\scripts\analyze_jsonl.py --limit 10
 ```
 
-Use `--domain aspire_lifestyle` for Aspire's domain taxonomy. The script resumes by skipping post IDs already present in the output file.
+The processor automatically chooses `tic` or `aspire_lifestyle` using each competitor's `domainId` in `config/competitors.json`. Use `--domain tic` or `--domain aspire_lifestyle` only to override the mapping for a deliberate test.
+
+The script resumes by skipping competitor/post IDs already present in the output file.
 
 ## Files
 
 - Input: `data/output/posts-365d.jsonl`
 - Output: `data/output/enriched-posts.jsonl`
 
-The service listens only on localhost by default. Keep raw collection and enriched output local until the retention, privacy and X-authorisation terms are reviewed.
+The service listens only on localhost by default. Keep raw collection and enriched output local until retention, privacy and X authorisation terms are reviewed.
 
 ## Important limits
 
