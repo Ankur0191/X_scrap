@@ -150,66 +150,73 @@ const eligible = eligibleCandidates.slice(0, limit);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function expandVisibleProbableSpamSections(page) {
-  let expanded = 0;
+async function expandVisibleProbableSpamSections(page, attemptedControlKeys) {
+  const clickedLabels = [];
   const labelsSeen = new Set();
+  let sectionsRevealed = 0;
 
-  // Inspect actual interactive controls as well as their accessible names;
-  // X may expose the spam action through aria-label/title rather than text.
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidates = page.locator(
-      'button, [role="button"], a, [tabindex="0"], [aria-label*="spam" i], [title*="spam" i]'
-    );
-    const count = await candidates.count();
-    let clicked = false;
+  const inspectAndClick = async (candidate, source) => {
+    if (!(await candidate.isVisible({ timeout: 150 }).catch(() => false))) return false;
 
-    for (let index = 0; index < count; index += 1) {
-      const candidate = candidates.nth(index);
-      try {
-        if (!(await candidate.isVisible({ timeout: 150 }))) continue;
-        const parts = [
-          await candidate.innerText().catch(() => ""),
-          await candidate.getAttribute("aria-label").catch(() => ""),
-          await candidate.getAttribute("title").catch(() => "")
-        ].map((item) => String(item || "").replace(/\s+/g, " ").trim()).filter(Boolean);
-        const label = [...new Set(parts)].join(" | ");
-        if (/spam/i.test(label)) labelsSeen.add(label.slice(0, 180));
-        if (!isProbableSpamControlLabel(label)) continue;
+    const details = await candidate.evaluate((element) => {
+      const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
+      const target = source === "text"
+        ? (element.closest('button, [role="button"]') || element)
+        : element;
+      return {
+        tag: target.tagName || "",
+        role: target.getAttribute("role") || "",
+        ariaLabel: normalize(target.getAttribute("aria-label")),
+        title: normalize(target.getAttribute("title")),
+        text: normalize(target.innerText || target.textContent),
+        testId: target.getAttribute("data-testid") || ""
+      };
+    }, { source }).catch(() => null);
+    if (!details) return false;
 
-        await candidate.click({ timeout: 3000 });
-        expanded += 1;
-        clicked = true;
-        await wait(1000);
-        break;
-      } catch {
-        // A stale or non-interactive matching node is skipped safely.
-      }
+    const label = [details.ariaLabel, details.title, details.text]
+      .filter(Boolean).join(" | ").replace(/\s+/g, " ").trim();
+    if (/spam/i.test(label)) labelsSeen.add(label.slice(0, 180));
+    if (!isProbableSpamControlLabel(label)) return false;
+
+    const key = [
+      details.tag, details.role, details.testId,
+      details.ariaLabel, details.title, details.text
+    ].join("|").toLowerCase();
+    if (attemptedControlKeys.has(key)) return false;
+    attemptedControlKeys.add(key);
+
+    const beforeCount = await page.locator('article[data-testid="tweet"]').count();
+    await candidate.click({ timeout: 3000 });
+    clickedLabels.push(label.slice(0, 180));
+    await wait(1300);
+    const afterCount = await page.locator('article[data-testid="tweet"]').count();
+
+    // Count an expansion only when the rendered conversation gains cards.
+    // A successful click without newly rendered cards remains a click attempt,
+    // not proof that X revealed the hidden replies.
+    if (afterCount > beforeCount) sectionsRevealed += 1;
+    return true;
+  };
+
+  // Use semantic buttons first. This avoids clicking several nested descendants
+  // of the same visible spam control.
+  const buttons = page.locator('button, [role="button"]');
+  const buttonCount = await buttons.count();
+  for (let index = 0; index < buttonCount; index += 1) {
+    const clicked = await inspectAndClick(buttons.nth(index), "button").catch(() => false);
+    if (clicked) break; // one distinct control per screen pass
+  }
+
+  // X has used non-semantic clickable containers for this control. Fall back
+  // to the smallest matching text node only when no semantic button was clicked.
+  if (clickedLabels.length === 0) {
+    const textCandidates = page.getByText(/probable\s+spam/i);
+    const textCount = await textCandidates.count();
+    for (let index = 0; index < textCount; index += 1) {
+      const clicked = await inspectAndClick(textCandidates.nth(index), "text").catch(() => false);
+      if (clicked) break;
     }
-
-    if (!clicked) {
-      // Fallback for X versions where the clickable text is not exposed as a
-      // semantic button/link in the rendered accessibility tree.
-      const textCandidates = page.getByText(/probable\s+spam/i);
-      const textCount = await textCandidates.count();
-      for (let index = 0; index < textCount; index += 1) {
-        const candidate = textCandidates.nth(index);
-        try {
-          if (!(await candidate.isVisible({ timeout: 150 }))) continue;
-          const label = await candidate.innerText();
-          if (/spam/i.test(label)) labelsSeen.add(label.slice(0, 180));
-          if (!isProbableSpamControlLabel(label)) continue;
-          await candidate.click({ timeout: 3000 });
-          expanded += 1;
-          clicked = true;
-          await wait(1000);
-          break;
-        } catch {
-          // Continue to other visible text matches.
-        }
-      }
-    }
-
-    if (!clicked) break;
   }
 
   const bodyText = await page.locator("body").innerText().catch(() => "");
@@ -220,7 +227,9 @@ async function expandVisibleProbableSpamSections(page) {
   )].slice(0, 10);
 
   return {
-    expanded,
+    clicked: clickedLabels.length,
+    clickedLabels,
+    revealed: sectionsRevealed,
     labelsSeen: [...labelsSeen].slice(0, 10),
     visibleSpamText
   };
@@ -243,6 +252,7 @@ const runSummary = {
   rootsSelected: eligible.length,
   diagnosticAnchorOutsideRootQueue,
   ancestorsAdded: 0,
+  probableSpamSectionsClicked: 0,
   probableSpamSectionsExpanded: 0,
   roots: []
 };
@@ -282,6 +292,7 @@ try {
       unclassifiedConversationCards: 0,
       ancestorCandidatesFound: 0,
       newAncestorsCaptured: 0,
+      probableSpamSectionsClicked: 0,
       probableSpamSectionsExpanded: 0,
       probableSpamControlLabelsSeen: [],
       probableSpamTextSeen: [],
@@ -289,7 +300,16 @@ try {
     };
     console.log("\nThread " + tracked + ":" + rootId);
     await page.goto(rootPost.url, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2500);
+    try {
+      await page.locator('article[data-testid="tweet"]').first().waitFor({
+        state: "visible",
+        timeout: 10000
+      });
+    } catch {
+      // Continue to the normal stop/root visibility checks; do not infer success.
+    }
+    await page.waitForTimeout(500);
 
     const stopAtOpen = detectStopCondition(await page.locator("body").innerText().catch(() => ""), page.url());
     if (stopAtOpen) throw new Error("Stopped by platform state: " + stopAtOpen);
@@ -309,15 +329,26 @@ try {
     let newAncestorsForRoot = 0;
     let ancestorCandidatesFoundForRoot = 0;
     const knownByAuthor = new Map([[String(rootPost.rootAuthorUsername).toLowerCase(), rootId]]);
+    const attemptedProbableSpamControlKeys = new Set();
     let visibleMoreReplyControl = false;
 
     for (let scroll = 0; scroll <= maxScrolls; scroll += 1) {
       // X may hide replies behind its "Show probable spam" control. Expand
       // these sections before counting/extracting cards so reply detection
       // sees the newly revealed cards on this same screen.
-      const probableSpamResult = await expandVisibleProbableSpamSections(page);
-      const probableSpamExpandedThisScreen = probableSpamResult.expanded;
+      const probableSpamResult = await expandVisibleProbableSpamSections(
+        page,
+        attemptedProbableSpamControlKeys
+      );
+      const probableSpamExpandedThisScreen = probableSpamResult.revealed;
+      status.probableSpamSectionsClicked += probableSpamResult.clicked;
+      runSummary.probableSpamSectionsClicked += probableSpamResult.clicked;
       for (const label of probableSpamResult.labelsSeen) {
+        if (!status.probableSpamControlLabelsSeen.includes(label)) {
+          status.probableSpamControlLabelsSeen.push(label);
+        }
+      }
+      for (const label of probableSpamResult.clickedLabels) {
         if (!status.probableSpamControlLabelsSeen.includes(label)) {
           status.probableSpamControlLabelsSeen.push(label);
         }
@@ -327,15 +358,20 @@ try {
           status.probableSpamTextSeen.push(line);
         }
       }
-      if (probableSpamExpandedThisScreen > 0) {
-        status.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
-        runSummary.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
-        console.log("Expanded " + probableSpamExpandedThisScreen + " probable-spam section(s) before reply extraction.");
+      if (probableSpamResult.clicked > 0) {
+        console.log("Clicked probable-spam control: " + JSON.stringify({
+          labels: probableSpamResult.clickedLabels,
+          newCardsRevealed: probableSpamExpandedThisScreen
+        }));
       } else if (probableSpamResult.labelsSeen.length || probableSpamResult.visibleSpamText.length) {
         console.log("Probable-spam UI diagnostics: " + JSON.stringify({
           controlLabels: probableSpamResult.labelsSeen,
           visibleText: probableSpamResult.visibleSpamText
         }));
+      }
+      if (probableSpamExpandedThisScreen > 0) {
+        status.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
+        runSummary.probableSpamSectionsExpanded += probableSpamExpandedThisScreen;
       }
 
       const articles = page.locator('article[data-testid="tweet"]');
@@ -497,7 +533,7 @@ try {
         " new replies, " + unclassifiedThisScreen + " unclassified cards."
       );
 
-      if (newThisScreen === 0 && !visibleMoreReplyControl && probableSpamExpandedThisScreen === 0) stableScreens += 1;
+      if (newThisScreen === 0 && !visibleMoreReplyControl && probableSpamResult.clicked === 0) stableScreens += 1;
       else stableScreens = 0;
 
       if (stableScreens >= stableScreensRequired) {
