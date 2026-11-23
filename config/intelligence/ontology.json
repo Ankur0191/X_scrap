@@ -39,10 +39,14 @@
     "uses_hashtag": "Post explicitly uses a hashtag",
     "replies_to": "A post is a reply to another post",
     "quotes": "A post quotes another post",
-    "reposts": "A post reposts another post",
+    "reposts": "An X account reposted a social post",
     "evidenced_by": "An analysis claim is supported by one or more source records",
     "reposted_by": "A social post is reposted by an X account",
-    "appears_in_conversation_under": "A reply appears in the conversation rooted at a social post"
+    "appears_in_conversation_under": "A reply appears in the conversation rooted at a social post",
+    "authored_by": "A social post is authored by an X account",
+    "published_by": "A social post is published by an organization or tracked X account",
+    "quoted_content_uses_hashtag": "A post's quoted content explicitly uses a hashtag",
+    "quoted_content_mentions_account": "A post's quoted content explicitly mentions an X account"
   },
   "evidenceRules": {
     "explicitOnly": [
@@ -271,6 +275,38 @@
       ],
       "to": [
         "social_post"
+      ]
+    },
+    "authored_by": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "x_account"
+      ]
+    },
+    "published_by": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "x_account"
+      ]
+    },
+    "quoted_content_uses_hashtag": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "hashtag"
+      ]
+    },
+    "quoted_content_mentions_account": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "x_account"
       ]
     }
   },
