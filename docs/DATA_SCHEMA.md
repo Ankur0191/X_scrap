@@ -14,8 +14,9 @@ Each line in `data/output/posts.jsonl` is one JSON record.
 | metrics | object | Visible replies, reposts, likes and views; unavailable values are null |
 | media | object[] | Visible image alt/display URL and video presence metadata |
 | isReply | boolean | Whether visible card text indicates a reply |
-| isRepost | boolean | Whether visible social context identifies a tracked competitor repost |
+| isRepost | boolean | Whether visible social context indicates a repost in the tracked profile timeline |
 | isQuote | boolean | Whether a quoted post was detected in the card |
+| isPinned | boolean | Whether visible card text indicates a pinned post |
 | postType | string | post, reply, repost or quote |
 | timelineView | string | posts or with_replies |
 | socialContext | string | Visible context label, if present |
