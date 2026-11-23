@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "auth:check": "node src/auth/preflight.js",
     "auth:setup": "node src/auth/manual-session.js",
@@ -11,7 +13,9 @@
     "collect:all": "node src/collector/run.js --all-available",
     "ingest": "node src/ingest/cli.js",
     "ingest:sample": "node src/ingest/cli.js --input data/sample/authorized-sample.jsonl",
-    "test": "node --test"
+    "test": "node --test",
+    "collect:ten": "node src/collector/run.js --account tenlifestyle",
+    "collect:sgs": "node src/collector/run.js --account SGS_SA"
   },
   "dependencies": {
     "playwright": "^1.56.0"
