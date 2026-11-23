@@ -48,7 +48,10 @@ Historical backfill through the available timeline, subject to the configured 25
 
 ```bash
 npm run collect:all
+npm run audit:data
 ```
+
+The local audit command reports duplicate IDs, date coverage, missing fields, possible character-encoding issues, media-alt quality, author attribution and visible metric coverage. It prints aggregate diagnostics only and does not upload your dataset.
 
 Output:
 - `data/output/posts.jsonl` — append-only normalized visible post records.
