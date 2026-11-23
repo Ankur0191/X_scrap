@@ -103,7 +103,7 @@
       ],
       "domainId": "tic",
       "accountScope": "global",
-      "verificationStatus": "profile_exists_and_collected",
+      "verificationStatus": "profile_exists",
       "verificationSourceUrl": "https://x.com/Intertek",
       "verificationNotes": "Public profile identity and intertek.com bio match; successfully collected posts and public replies in the local visible-frontend validation."
     },
