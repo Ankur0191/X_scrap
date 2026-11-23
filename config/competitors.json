@@ -4,20 +4,26 @@
   "collectionIntent": {
     "latestPosts": true,
     "historicalBackfill": "all_available_under_source_permissions",
-    "includeReplies": false,
+    "includeReplies": true,
     "includeReposts": true,
     "includeQuotePosts": true
   },
   "competitors": [
     {
-      "username": "TenLifestyle",
+      "username": "tenlifestyle",
       "displayName": "Ten Technologies Group (formerly Ten Lifestyle Group)",
       "enabled": true,
       "priority": 1,
-      "profileUrl": "https://x.com/TenLifestyle",
+      "profileUrl": "https://x.com/tenlifestyle",
       "verificationSourceUrl": "https://tenlifestylegroup.com/2024/07/30/ten-box-office/",
       "verifiedAt": "2026-11-23",
-      "tags": ["concierge", "premium-lifestyle", "travel", "loyalty", "customer-experience"],
+      "tags": [
+        "concierge",
+        "premium-lifestyle",
+        "travel",
+        "loyalty",
+        "customer-experience"
+      ],
       "notes": "Official corporate press release links to @TenLifestyle. Company renamed from Ten Lifestyle Group to Ten Technologies Group plc in September 2026."
     },
     {
@@ -28,7 +34,13 @@
       "profileUrl": "https://x.com/SGS_SA",
       "verificationSourceUrl": "https://www.sgs.com/en-in/news/2020/05/radisson-hotel-group-partners-with-sgs-in-global-commitment-to-cleanliness-and-hygiene",
       "verifiedAt": "2026-11-23",
-      "tags": ["testing", "inspection", "certification", "assurance", "sustainability"],
+      "tags": [
+        "testing",
+        "inspection",
+        "certification",
+        "assurance",
+        "sustainability"
+      ],
       "notes": "Official SGS page links to @SGS_SA."
     }
   ]
