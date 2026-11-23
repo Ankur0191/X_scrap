@@ -16,7 +16,7 @@ For a run at time T:
 - window_start = T - 365 days
 - include records with published_at >= window_start and published_at <= T
 - retain collected_at separately from published_at
-- refresh engagement as dated snapshots rather than overwriting historical values
+- refresh engagement as dated snapshots rather than overwriting historical values; record a snapshot when values change or at the configured interval
 
 Older rows already present in the initial local dataset are not silently deleted. `npm run build:window` produces a clean active-window materialisation for analytics and AI. A separate retention policy can later delete expired raw data after confirmation.
 
@@ -55,7 +55,7 @@ Store exactly what was visible or returned by an authorised source:
 - raw text, language, created_at
 - visible media references and links
 - explicit hashtags and mentions
-- visible engagement counts
+- visible engagement counts and timestamped engagement history
 - collected_at and collection run ID
 - source method and coverage notes
 
@@ -181,9 +181,10 @@ Possible opportunity signals:
 2. `thread-replies.jsonl`: visible public replies linked to conversation root IDs.
 3. `conversation-365d.jsonl`: deduplicated profile records and public thread replies, ready for NLP.
 4. `enriched-posts.jsonl`: per-record entities, classifications, candidate/validated relations and extraction provenance.
-5. `signal-clusters.json`: recurring complaint/service clusters, event clusters, monthly counts and supporting evidence.
-6. `preliminary-competitor-brief.json`: candidate opportunities and analyst validation steps.
-7. `intelligence-events.jsonl`, `entity-graph.jsonl` and `competitor-brief.json`: planned final reasoning/graph outputs once the second-stage analyst model is benchmarked and enabled.
+5. `engagement-snapshots.jsonl`: time-stamped visible replies/reposts/likes/views observations.
+6. `signal-clusters.json`: recurring complaint/service clusters, event clusters, monthly counts and supporting evidence.
+7. `preliminary-competitor-brief.json`: candidate opportunities and analyst validation steps.
+8. `intelligence-events.jsonl`, `entity-graph.jsonl` and `competitor-brief.json`: planned final reasoning/graph outputs once the second-stage analyst model is benchmarked and enabled.
 
 See:
 - `schemas/intelligence-event.schema.json`
