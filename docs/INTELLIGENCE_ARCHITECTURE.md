@@ -32,7 +32,15 @@ Treat these as separate datasets and separate coverage counters:
 6. Hashtags and mentions: explicit hashtags and account mentions contained in each post.
 7. Thread relationships: reply-to, quote-of, repost-of and conversation-root edges.
 
-The current profile collector covers profile Posts and Replies timelines and extracts explicit hashtags and mentions. It does not yet claim full public-thread-reply coverage. That requires a dedicated conversation crawler which opens each in-window root post, traverses the visible conversation, records the root ID and author of each response, and marks the thread complete only when the permitted UI exposes an end-of-thread condition. A thread with collapsed, unavailable, hidden or inaccessible replies must be marked partial, never complete.
+The profile collector covers profile Posts and Replies timelines and extracts explicit hashtags and mentions. A separate conversation crawler now builds a queue of in-window original posts, opens each conversation and captures cards that the visible UI explicitly identifies as replies. It records the root ID, visible reply author, visible "replying to" account and parent ID when that parent is present earlier in the same visible thread.
+
+The thread crawler records per-root progress and distinguishes:
+- visible-end reached (the visible UI stopped yielding identified replies)
+- partial/unclassified cards
+- root unavailable
+- safety limit reached
+
+A visible-end state is not proof that X exposed every reply. Collapsed, unavailable, hidden, removed, probable-spam or otherwise inaccessible replies remain coverage gaps. Keep the conversation coverage status partial until a validation sample confirms that the interface presents all in-scope replies.
 
 A profile scan is complete for the 365-day window only if it reaches the old-date boundary using multiple consecutive screens containing no in-window posts. Hitting a safety scroll limit is partial. A screen containing duplicates is not evidence that the end of the history has been reached.
 
@@ -169,8 +177,10 @@ Possible opportunity signals:
 
 ## Target JSON outputs
 
-1. `posts-365d.jsonl`: raw in-window source records.
-2. `enriched-posts.jsonl`: per-post entities, classifications, relations and extraction provenance.
+1. `posts-365d.jsonl`: in-window profile source records.
+2. `thread-replies.jsonl`: visible public replies linked to conversation root IDs.
+3. `conversation-365d.jsonl`: deduplicated profile records and thread replies, ready for NLP.
+4. `enriched-posts.jsonl`: per-record entities, classifications, validated/candidate relations and extraction provenance.
 3. `intelligence-events.jsonl`: complaint, launch, partnership, regulatory, product and incident events.
 4. `entity-graph.jsonl`: canonical organisations, services, products, regions, issues and relation edges.
 5. `competitor-brief.json`: 365-day executive intelligence brief with trends, gaps, opportunities and actionables.
