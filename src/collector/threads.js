@@ -186,10 +186,12 @@ try {
     let unclassifiedForRoot = 0;
     const visibleReplyIds = new Set();
     const visibleExternalReplyAuthors = new Set();
+    const visibleExternalReplies = new Map();
     const unclassifiedCardIds = new Set();
     const unclassifiedCards = new Map();
     let lastRootArticleIndex = -1;
     let newAncestorsForRoot = 0;
+    let ancestorCandidatesFoundForRoot = 0;
     const knownByAuthor = new Map([[String(rootPost.rootAuthorUsername).toLowerCase(), rootId]]);
     let visibleMoreReplyControl = false;
 
@@ -258,7 +260,10 @@ try {
         unclassifiedCardIds.delete(post.id);
         unclassifiedCards.delete(post.id);
         visibleReplyIds.add(post.id);
-        if (post.authorUsername !== tracked) visibleExternalReplyAuthors.add(post.authorUsername);
+        if (post.authorUsername !== tracked) {
+          visibleExternalReplyAuthors.add(post.authorUsername);
+          visibleExternalReplies.set(post.id, post);
+        }
 
         const snapshotKey = tracked + ":" + post.id;
         if (!snapshotSeenThisRun.has(snapshotKey)) {
@@ -385,14 +390,11 @@ try {
         maxAgeHours: Number(settings.maxAncestorAgeHours || 72)
       });
       if (ancestorResult) {
+        ancestorCandidatesFoundForRoot = 1;
         const candidate = ancestorResult.candidate;
-        const matchingReplyIds = [...visibleReplyIds].filter((replyId) => {
-          // The later visible reply must be authored by the same participant.
-          const matching = [...unclassifiedCards.values()].find((item) =>
-            item.post.id === replyId && item.post.authorUsername === ancestorResult.matchedReplyAuthor
-          );
-          return Boolean(matching);
-        });
+        const matchingReplyIds = [...visibleExternalReplies.values()]
+          .filter((reply) => reply.authorUsername === ancestorResult.matchedReplyAuthor)
+          .map((reply) => String(reply.id));
         const ancestorKey = tracked + ":" + candidate.id + ":" + rootId;
         unclassifiedCardIds.delete(candidate.id);
         if (!seenAncestors.has(ancestorKey)) {
@@ -431,11 +433,14 @@ try {
     }
 
     unclassifiedForRoot = unclassifiedCardIds.size;
-    status.ancestorCandidatesFound = newAncestorsForRoot > 0 ? 1 : 0;
+    status.ancestorCandidatesFound = ancestorCandidatesFoundForRoot;
     status.newAncestorsCaptured = newAncestorsForRoot;
     if (!rootVisible) {
       status.status = "root_post_not_visible";
       status.completeness = "partial";
+    } else if (unclassifiedForRoot === 0 && status.status === "partial_unclassified_cards") {
+      status.status = "visible_end_reached";
+      status.completeness = "ui_visible_end_not_platform_completeness";
     }
     status.newRepliesCaptured = newRepliesForRoot;
     status.visibleReplyCount = visibleReplyIds.size;
