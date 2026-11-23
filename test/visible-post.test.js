@@ -138,3 +138,29 @@ test("does not select an earlier card without participant continuity or outside 
     }]
   }), null);
 });
+
+
+test("explicit reply context is accepted only after the selected root card", () => {
+  const base = {
+    explicitReply: true,
+    rootReplyCount: 1,
+    rootCreatedAt: "2026-04-17T05:18:33.000Z",
+    candidateCreatedAt: "2026-04-17T14:08:08.000Z",
+    alreadyClassifiedCount: 0
+  };
+  assert.deepEqual(classifyVisibleThreadReply({
+    ...base,
+    candidateIndex: 2,
+    rootIndex: 1
+  }), { isReply: true, method: "explicit_reply_context" });
+  assert.deepEqual(classifyVisibleThreadReply({
+    ...base,
+    candidateIndex: 0,
+    rootIndex: 1
+  }), { isReply: false, method: null });
+  assert.deepEqual(classifyVisibleThreadReply({
+    ...base,
+    candidateIndex: 0,
+    rootIndex: -1
+  }), { isReply: false, method: null });
+});
