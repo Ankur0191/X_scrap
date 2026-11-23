@@ -39,7 +39,7 @@ One-time backfill of all enabled competitors across the last 365 elapsed days:
 npm run backfill:year
 ```
 
-The backfill stops only after multiple consecutive visible screens contain no in-window posts and older-than-cutoff posts are visible. Duplicates do not end a historical scan. A 1,200-scroll safety stop is reported as incomplete, not complete. Review `data/output/collection-runs.jsonl`.
+The backfill stops only after multiple consecutive visible screens contain no in-window posts and older-than-cutoff posts are visible. Duplicates do not end a historical scan. A 1,200-scroll safety stop is reported as partial, not complete. Checkpoints are saved every 25 screens per competitor/timeline, so re-running `npm run backfill:year` resumes after the last saved post ID. A checkpoint that cannot be found is left unchanged and reported as partial. Review `data/output/collection-runs.jsonl` and `data/output/backfill-checkpoints.json`.
 
 Current profile collection captures:
 - Posts timeline and Replies timeline (posts/replies authored by the competitor account)
@@ -61,7 +61,30 @@ This creates:
 
 The original `posts.jsonl` is preserved. Older rows already collected are excluded from the AI input but are not silently deleted. The window builder also derives hashtags and account mentions from legacy source text, so older records do not need to be re-collected just to recover explicit tags.
 
-## 4. Collect public conversation replies
+## 4. Validate public conversation replies
+
+Before starting the full historical backfill, validate the conversation selector against a small set of posts already collected:
+
+```powershell
+npm run build:window
+npm run threads:queue
+npm run collect:threads -- --limit 3
+npm run build:conversation
+```
+
+Inspect `data/output/thread-replies.jsonl` and `data/output/thread-progress.jsonl`. Confirm that reply authors, root post IDs and visible reply text match what you see in the browser. Threads with unclassified cards or safety limits must remain partial.
+
+After the three-thread test is correct, backfill the rolling year:
+
+```powershell
+npm run backfill:year
+npm run build:window
+npm run threads:queue
+```
+
+Then resume public conversation collection in bounded batches or use the recurring cycle.
+
+## 5. Collect public conversation replies
 
 Build a queue of original in-window competitor posts:
 
@@ -100,8 +123,9 @@ Conversation outputs:
 - `conversation-365d.jsonl`
 - `conversation-manifest.json`
 - `engagement-snapshots.jsonl` — timestamped visible engagement observations
+- `backfill-checkpoints.json` — per-account/timeline resume positions
 
-## 5. Continuous Windows monitoring
+## 6. Continuous Windows monitoring
 
 The local cycle runner is `scripts/run-cycle.ps1`. To schedule it, open Windows Task Scheduler and create a task with:
 
@@ -112,15 +136,21 @@ The local cycle runner is `scripts/run-cycle.ps1`. To schedule it, open Windows 
 
 Keep the PC awake and the user session active during collection. The log is written to `data/output/scheduled-monitor.log`. The suggested 60-minute interval is configurable; the actual interval should follow the written X authorisation.
 
-## 6. Audit data
+## 7. Audit data
 
 ```powershell
 npm run audit:data
 ```
 
-The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution. The recurring cycle audits the merged conversation file.
+The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution. To audit the merged conversations directly:
 
-## 7. Local GLiNER2.5 extraction
+```powershell
+npm run audit:data -- data/output/conversation-365d.jsonl
+```
+
+The recurring cycle audits the merged conversation file.
+
+## 8. Local GLiNER2.5 extraction
 
 The first NLP layer uses the multilingual `fastino/gliner2.5-multi-v1` checkpoint. It extracts entity spans, topic/signal labels, complaint categories, service categories, impact themes and candidate relations. See [nlp-engine/README.md](nlp-engine/README.md).
 
@@ -171,7 +201,7 @@ The script reads the domain taxonomies and coverage manifests, sends only aggreg
 
 It computes collection coverage and date boundaries locally, validates each model response against `schemas/intelligence-brief.schema.json`, and saves invalid responses with validation errors rather than treating them as usable briefs. For hosted providers, review your data-handling requirements before sending source quotes outside your machine.
 
-## 8. Strategic reasoning and JSON outputs
+## 9. Strategic reasoning and JSON outputs
 
 GLiNER2.5 is the structured extraction layer, not the complete reasoning engine. A separate evidence-grounded LLM stage will synthesize recurring complaints, root-cause hypotheses, regions, business impact, competitor gaps, launches and actionables. Each claim must cite source post/reply IDs and exact evidence; hypotheses must be labelled as hypotheses.
 
