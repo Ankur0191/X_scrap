@@ -1,81 +1,109 @@
 # X Competitor Intelligence Engine
 
-A local-first intelligence pipeline for TIC and Aspire Lifestyle competitors. X collection is limited to the written permission scope and currently uses the visible frontend collector; the platform API adapter is intended to replace it when the promised access is issued on January 15, 2027.
+A local-first collection and evidence extraction pipeline for TIC and Aspire Lifestyle competitors. X collection is restricted to the exact written permission scope. The normalized source and intelligence contracts are designed so an officially provided API adapter can replace the temporary source when API access is issued on January 15, 2027.
 
-## Current competitor targets
+## Active competitors
 
-| Organisation | X handle | Intelligence domain |
+| Organisation | X account | Domain taxonomy |
 |---|---|---|
 | Ten Technologies Group (formerly Ten Lifestyle Group) | `tenlifestyle` | `aspire_lifestyle` |
 | SGS | `SGS_SA` | `tic` |
 
-Edit `config/competitors.json` to add organisations. The `domainId` field selects the appropriate NLP taxonomy.
+Add more organisations in `config/competitors.json` and assign a `domainId`. The engine is designed for TIC businesses, payment networks, banks, card issuers, travel, hospitality, loyalty and concierge providers.
 
 ## 1. Install and authenticate
 
 Requires Node.js 20+.
 
 ```powershell
+git pull origin main
 npm install
 npx playwright install chromium
 npm run auth:check
 ```
 
-Use the persistent headed browser profile and sign in manually when prompted. The local profile is stored in `.local/browser-profile/`, excluded from Git and never exported as a source file.
+Sign in manually in headed Chromium when prompted. The persistent profile lives in `.local/browser-profile/`; it is git-ignored and never exported into project source.
 
-## 2. Collect the rolling one-year window
+## 2. Rolling 365-day profile collection
 
-Latest-first incremental scan:
+Latest-first incremental runs:
 
 ```powershell
 npm run collect:ten
 npm run collect:sgs
 ```
 
-One-time 365-day profile backfill for all enabled competitors:
+One-time backfill of all enabled competitors across the last 365 elapsed days:
 
 ```powershell
 npm run backfill:year
 ```
 
-The backfill uses the rolling cutoff and requires multiple consecutive screens containing no in-window posts before it marks the timeline boundary as reached. It does not stop just because visible cards are duplicates. The 1,200-scroll safety bound is a fail-safe, not a claim of completeness. Check each timeline's `completion` field in `data/output/collection-runs.jsonl`.
+The backfill stops only after multiple consecutive visible screens contain no in-window posts and older-than-cutoff posts are visible. Duplicates do not end a historical scan. A 1,200-scroll safety stop is reported as incomplete, not complete. Review `data/output/collection-runs.jsonl`.
 
-Current profile collection covers:
-- Posts timeline
-- Replies timeline (posts/replies authored by the competitor account)
-- Visible text, dates, status URLs and action counts
-- Image/video presence and image alt/display URL
-- Explicit hashtags and @mentions with basic relationship edges
+Current profile collection captures:
+- Posts timeline and Replies timeline (posts/replies authored by the competitor account)
+- Visible text, timestamp, post URL and engagement counts
+- Image/video presence and visible media references
+- Hashtags, @mentions, quote/repost references where the UI exposes them
+- Basic relationship edges for tags, mentions, quotes and reposts
 
-**It does not yet guarantee every third-party reply under every competitor post.** Those require a separate conversation/thread crawler and independent coverage status. Do not label public thread replies complete until that layer is implemented and validated.
-
-## 3. Build the active rolling dataset
-
-The original `posts.jsonl` is preserved as the local collection log. Create a clean AI input containing only the current 365-day window:
+## 3. Build the active window
 
 ```powershell
 npm run build:window
 ```
 
-Outputs:
-- `data/output/posts-365d.jsonl` — in-window records sorted by publication date
-- `data/output/window-manifest.json` — cutoff, counts, competitor split, post types and top hashtags
+This creates:
+- `data/output/posts-365d.jsonl`: only the latest rolling 365 days
+- `data/output/window-manifest.json`: cutoff, counts, top hashtags and competitor breakdown
 
-The window builder also derives hashtags and account mentions from the original source text for legacy records collected before those fields were added. It does not rewrite the original collection file.
+The original `posts.jsonl` is preserved. Older rows already collected are excluded from the AI input but are not silently deleted. The window builder also derives hashtags and account mentions from legacy source text, so older records do not need to be re-collected just to recover explicit tags.
 
-## 4. Audit collection quality
+## 4. Collect public conversation replies
+
+Build a queue of original in-window competitor posts:
+
+```powershell
+npm run threads:queue
+```
+
+Start with three threads for selector validation:
+
+```powershell
+npm run collect:threads -- --limit 3
+```
+
+After inspecting the resulting replies and progress report, continue the queue:
+
+```powershell
+npm run collect:threads
+npm run build:conversation
+```
+
+The conversation collector captures reply cards that the visible interface identifies as replies and links them to the root post. It records partial/visible-end states and unclassified cards. **A visible end is not proof that X exposed every reply**, so never report complete public-reply coverage without a separate validation step. The queue can be resumed; previously completed roots are revisited after the configured refresh interval.
+
+Conversation outputs:
+- `thread-queue-365d.jsonl`
+- `thread-replies.jsonl`
+- `thread-progress.jsonl`
+- `thread-runs.jsonl`
+- `conversation-365d.jsonl`
+- `conversation-manifest.json`
+
+## 5. Audit data
 
 ```powershell
 npm run audit:data
 ```
 
-The report includes duplicates, invalid fields, rolling-window eligibility, tag coverage, media metadata and metric coverage.
+The audit reports data integrity, rolling-window eligibility, duplicates, tag coverage, media quality, missing metrics and author attribution.
 
-## 5. Run local GLiNER2.5 extraction
+## 6. Local GLiNER2.5 extraction
 
-See [nlp-engine/README.md](nlp-engine/README.md).
+The first NLP layer uses the multilingual `fastino/gliner2.5-multi-v1` checkpoint. It extracts entity spans, topic/signal labels, complaint categories, service categories, impact themes and candidate relations. See [nlp-engine/README.md](nlp-engine/README.md).
 
-PowerShell setup:
+PowerShell setup from the repository root:
 
 ```powershell
 py -3.11 -m venv .venv
@@ -85,35 +113,36 @@ python -m pip install -r nlp-engine\requirements.txt
 python -m uvicorn app.main:app --app-dir nlp-engine --host 127.0.0.1 --port 8010
 ```
 
-In a second terminal:
+In a second terminal, process a small sample:
 
 ```powershell
-npm run build:window
 python nlp-engine\scripts\analyze_jsonl.py --limit 10
 ```
 
-The processor maps Ten to the Aspire taxonomy and SGS to the TIC taxonomy automatically. Remove `--limit 10` to process the entire active file. Results are written to `data/output/enriched-posts.jsonl`.
+The script automatically selects the TIC or Aspire taxonomy using each competitor's `domainId`. Remove `--limit 10` to process all available conversation records. Output: `data/output/enriched-posts.jsonl`.
 
-## Intelligence architecture
+## 7. Strategic reasoning and JSON outputs
 
-- [Architecture and coverage design](docs/INTELLIGENCE_ARCHITECTURE.md)
-- [Common ontology](config/intelligence/ontology.json)
-- [TIC taxonomy](config/intelligence/tic.json)
-- [Aspire taxonomy](config/intelligence/aspire.json)
-- [Evidence-backed event schema](schemas/intelligence-event.schema.json)
-- [365-day intelligence brief schema](schemas/intelligence-brief.schema.json)
+GLiNER2.5 is the structured extraction layer, not the complete reasoning engine. A separate evidence-grounded LLM stage will synthesize recurring complaints, root-cause hypotheses, regions, business impact, competitor gaps, launches and actionables. Each claim must cite source post/reply IDs and exact evidence; hypotheses must be labelled as hypotheses.
 
-GLiNER2.5 is the extraction layer, not the final strategic reasoning model. Complaints, competitor gaps, impact and actionables need a separate evidence-grounded LLM stage and multi-post aggregation. Every conclusion should retain the post/reply IDs and exact evidence.
+Schemas:
+- `schemas/intelligence-event.schema.json`: individual evidence-backed event
+- `schemas/intelligence-brief.schema.json`: rolling competitor intelligence brief
+- `config/intelligence/ontology.json`: shared entity and relation ontology
+- `config/intelligence/tic.json`: TIC taxonomy
+- `config/intelligence/aspire.json`: Aspire taxonomy
+- `docs/INTELLIGENCE_ARCHITECTURE.md`: full data and analysis architecture
 
-## Data and security
+## Security, privacy and coverage
 
-- Raw collection, browser profile and outputs stay local and are git-ignored.
-- Keep X's written authorization and follow its exact account, interface, frequency, retention and automation scope.
-- Stop on platform challenges or limits; do not bypass them.
-- Do not infer a complainant's location from their handle, name or language.
+- Keep collection and analysis outputs local; `data/output/` is git-ignored.
+- Follow X's written authorisation exactly, including interface, target accounts, frequency and retention.
+- Stop on platform challenges or limits. Do not bypass access controls.
+- Do not infer a complainant's region from name, handle, language or profile appearance.
+- Distinguish the company's own claims from customer reports and independently verified facts.
 - Do not treat one complaint as proof of a competitor gap.
-- Keep customer claims, competitor claims, verified facts and AI hypotheses separate.
+- Store unknown region, parent relationships and impact as null/unknown when the source does not establish them.
 
 ## API transition
 
-The config records January 15, 2027 as the planned API transition. The normalized post and intelligence schemas are designed so an officially provided API adapter can replace the browser source without changing the downstream NLP and analytics pipeline.
+The planned API transition date is recorded as January 15, 2027. The normalized post and intelligence schemas are source-independent so the supported API adapter can replace the browser source without changing the downstream NLP and graph pipeline.
