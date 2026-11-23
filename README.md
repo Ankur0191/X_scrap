@@ -140,6 +140,18 @@ python nlp-engine\scripts\analyze_jsonl.py --limit 10
 
 The script automatically selects the TIC or Aspire taxonomy using each competitor's `domainId`. Remove `--limit 10` to process all available conversation records. Output: `data/output/enriched-posts.jsonl`.
 
+Aggregate complaint and event patterns into evidence-linked clusters:
+
+```powershell
+python nlp-engine\scripts\aggregate_signals.py
+```
+
+Outputs:
+- `data/output/signal-clusters.json`: complaint/service clusters, event clusters, monthly counts, distinct author counts and supporting evidence.
+- `data/output/preliminary-competitor-brief.json`: preliminary signal brief and candidate investigation actions.
+
+These are candidate signals, not proven gaps. A model-extracted geographic mention is not automatically a complainant's region.
+
 ## 8. Strategic reasoning and JSON outputs
 
 GLiNER2.5 is the structured extraction layer, not the complete reasoning engine. A separate evidence-grounded LLM stage will synthesize recurring complaints, root-cause hypotheses, regions, business impact, competitor gaps, launches and actionables. Each claim must cite source post/reply IDs and exact evidence; hypotheses must be labelled as hypotheses.
@@ -151,6 +163,7 @@ Schemas:
 - `config/intelligence/tic.json`: TIC taxonomy
 - `config/intelligence/aspire.json`: Aspire taxonomy
 - `docs/INTELLIGENCE_ARCHITECTURE.md`: full data and analysis architecture
+- `nlp-engine/prompts/strategic-analyst-system.md`: evidence-grounded reasoning instructions for the final AI analyst stage
 
 ## Security, privacy and coverage
 
