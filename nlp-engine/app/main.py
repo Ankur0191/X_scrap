@@ -31,7 +31,7 @@ class AnalyzeRequest(BaseModel):
     tracked_competitor: str = Field(min_length=1, max_length=128)
     author_username: str | None = Field(default=None, max_length=128)
     domain_id: Literal["tic", "aspire_lifestyle"]
-    text: str = Field(min_length=1, max_length=12000)
+    text: str = Field(min_length=1, max_length=30000)
     source_url: str | None = Field(default=None, max_length=2048)
     created_at: str | None = Field(default=None, max_length=64)
     conversation_root_id: str | None = Field(default=None, max_length=128)
@@ -80,6 +80,8 @@ def build_classification_schema(domain_id: str) -> dict[str, Any]:
     ))
     source_voice_types = ONTOLOGY.get("sourceVoiceTypes", ["customer_or_member", "employee_or_former_employee", "partner_or_supplier", "competitor", "regulator_or_public_authority", "journalist_or_media", "industry_association", "investor_or_analyst", "general_public", "unknown"])
     journey_stages = profile.get("journeyStages", ["unknown"])
+    customer_segments = profile.get("customerSegments", ["unknown"])
+    industry_verticals = profile.get("industryVerticals", [])
     return {
         "sentiment": ["positive", "negative", "neutral", "mixed"],
         "source_voice": {
@@ -89,6 +91,11 @@ def build_classification_schema(domain_id: str) -> dict[str, Any]:
         },
         "journey_stage": {
             "labels": journey_stages,
+            "multi_label": True,
+            "cls_threshold": 0.35
+        },
+        "customer_segment": {
+            "labels": customer_segments,
             "multi_label": True,
             "cls_threshold": 0.35
         },
@@ -111,7 +118,14 @@ def build_classification_schema(domain_id: str) -> dict[str, Any]:
             "labels": profile.get("impactTypes", []),
             "multi_label": True,
             "cls_threshold": 0.35
-        }
+        },
+        **({
+            "industry_vertical": {
+                "labels": industry_verticals,
+                "multi_label": True,
+                "cls_threshold": 0.35
+            }
+        } if industry_verticals else {})
     }
 
 
