@@ -26,7 +26,9 @@
     "maxThreadScrolls": 30,
     "threadScrollDelayMs": 2500,
     "threadStableScreens": 3,
-    "includePublicThreadReplies": true
+    "includePublicThreadReplies": true,
+    "monitorThreadRootsPerCycle": 5,
+    "suggestedMonitorIntervalMinutes": 60
   },
   "competitors": [
     {
