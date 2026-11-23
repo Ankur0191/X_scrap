@@ -58,12 +58,19 @@ for (let index = 0; index < lines.length; index += 1) {
   // Rebuild explicit hashtag and @mention metadata from preserved source text.
   // This also upgrades records collected before tag extraction was added.
   const derivedTags = extractHashtagsAndMentions(post.text || "");
+  const derivedQuotedTags = extractHashtagsAndMentions((post.quotedText || []).join("\\n"));
   post.hashtags = Array.isArray(post.hashtags) && post.hashtags.length ? post.hashtags : derivedTags.hashtags;
   post.mentions = Array.isArray(post.mentions) && post.mentions.length ? post.mentions : derivedTags.mentions;
+  post.quotedHashtags = Array.isArray(post.quotedHashtags) && post.quotedHashtags.length ? post.quotedHashtags : derivedQuotedTags.hashtags;
+  post.quotedMentions = Array.isArray(post.quotedMentions) && post.quotedMentions.length ? post.quotedMentions : derivedQuotedTags.mentions;
   const existingRelationships = Array.isArray(post.relationships) ? post.relationships : [];
   const generatedRelationships = [
     ...post.hashtags.map((tag) => ({ type: "uses_hashtag", targetType: "hashtag", targetId: tag.normalized, surface: tag.label })),
-    ...post.mentions.map((mention) => ({ type: "mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle }))
+    ...post.mentions.map((mention) => ({ type: "mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle })),
+    ...post.quotedHashtags.map((tag) => ({ type: "quoted_content_uses_hashtag", targetType: "hashtag", targetId: tag.normalized, surface: tag.label })),
+    ...post.quotedMentions.map((mention) => ({ type: "quoted_content_mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle })),
+    ...(post.isQuote && post.quotedPostId ? [{ type: "quotes", targetType: "post", targetId: String(post.quotedPostId) }] : []),
+    ...(post.isRepost ? [{ type: "reposts", targetType: "post", targetId: String(post.id) }] : [])
   ];
   const relationshipKeys = new Set(existingRelationships.map((item) => item.type + ":" + item.targetId));
   post.relationships = [...existingRelationships, ...generatedRelationships.filter((item) => !relationshipKeys.has(item.type + ":" + item.targetId))];
