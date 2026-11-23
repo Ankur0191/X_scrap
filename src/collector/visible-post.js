@@ -49,6 +49,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   let permalink = null;
   let postId = null;
   let authorUsername = null;
+  const statusLinks = [];
   for (let index = 0; index < await permalinkLinks.count(); index += 1) {
     const href = await permalinkLinks.nth(index).getAttribute("href");
     if (!href) continue;
@@ -56,12 +57,19 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
       const candidate = new URL(href, "https://x.com");
       const match = candidate.pathname.match(/^\/([^/]+)\/status\/(\d+)/i);
       if (match) {
-        permalink = candidate.toString();
-        authorUsername = decodeURIComponent(match[1]).replace(/^@/, "").toLowerCase();
-        postId = match[2];
-        break;
+        const item = {
+          url: candidate.toString(),
+          authorUsername: decodeURIComponent(match[1]).replace(/^@/, "").toLowerCase(),
+          postId: match[2]
+        };
+        if (!statusLinks.some((existing) => existing.postId === item.postId)) statusLinks.push(item);
       }
     } catch { /* ignore malformed/non-post anchors */ }
+  }
+  if (statusLinks.length) {
+    permalink = statusLinks[0].url;
+    authorUsername = statusLinks[0].authorUsername;
+    postId = statusLinks[0].postId;
   }
   if (!permalink || !postId || !authorUsername) return null;
 
@@ -86,6 +94,9 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   const fullCardText = await card.innerText();
   const primaryText = tweetTexts[0] || "";
   const tags = extractHashtagsAndMentions(primaryText);
+  const quotedContent = tweetTexts.slice(1).join("\\n");
+  const quotedTags = extractHashtagsAndMentions(quotedContent);
+
   const metrics = { replies: null, reposts: null, likes: null, views: null };
   const metricElements = card.locator('button[aria-label], a[aria-label], button[title], a[title]');
   for (let index = 0; index < await metricElements.count(); index += 1) {
@@ -112,6 +123,8 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   }
 
   const isQuote = tweetTexts.length > 1;
+  const relatedPosts = statusLinks.filter((item) => item.postId !== postId);
+  const quotedPost = isQuote ? relatedPosts[0] || null : null;
   const isReply = /replying to/i.test(fullCardText);
   const isPinned = /\bpinned\b/i.test(socialContext) || /\bpinned\b/i.test(fullCardText.slice(0, 120));
   const relationships = [
@@ -126,7 +139,31 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
       targetType: "x_account",
       targetId: mention.normalized,
       surface: mention.handle
-    }))
+    })),
+    ...quotedTags.hashtags.map((tag) => ({
+      type: "quoted_content_uses_hashtag",
+      targetType: "hashtag",
+      targetId: tag.normalized,
+      surface: tag.label
+    })),
+    ...quotedTags.mentions.map((mention) => ({
+      type: "quoted_content_mentions_account",
+      targetType: "x_account",
+      targetId: mention.normalized,
+      surface: mention.handle
+    })),
+    ...(quotedPost ? [{
+      type: "quotes",
+      targetType: "post",
+      targetId: quotedPost.postId,
+      targetUrl: quotedPost.url
+    }] : []),
+    ...(isRepost ? [{
+      type: "reposts",
+      targetType: "post",
+      targetId: postId,
+      targetUrl: permalink
+    }] : [])
   ];
 
   return {
@@ -135,8 +172,12 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
     authorUsername,
     text: primaryText,
     quotedText: isQuote ? tweetTexts.slice(1) : [],
+    quotedPostId: quotedPost?.postId || null,
+    relatedPosts,
     hashtags: tags.hashtags,
     mentions: tags.mentions,
+    quotedHashtags: quotedTags.hashtags,
+    quotedMentions: quotedTags.mentions,
     relationships,
     createdAt,
     url: permalink,
