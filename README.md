@@ -40,8 +40,8 @@ npm run collect
 Scan one competitor:
 
 ```bash
-node src/collector/run.js --account tenlifestyle
-node src/collector/run.js --account SGS_SA
+npm run collect:ten
+npm run collect:sgs
 ```
 
 Historical backfill through the available timeline, subject to the configured 250-scroll safety bound:
