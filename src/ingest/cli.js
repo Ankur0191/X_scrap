@@ -26,8 +26,8 @@ if (!raw) {
 }
 let records;
 try {
-  records = raw.startsWith("[") ? JSON.parse(raw) : raw.split(/\\r?\\n/).filter(Boolean).map((line, i) => {
-    try { return JSON.parse(line); } catch { throw new Error(`Invalid JSON on line ${i + 1}`); }
+  records = raw.startsWith("[") ? JSON.parse(raw) : raw.split(/\r?\n/).filter(Boolean).map((line, i) => {
+    try { return JSON.parse(line); } catch { throw new Error("Invalid JSON on line " + (i + 1)); }
   });
   if (!Array.isArray(records)) throw new Error("JSON input must contain an array or JSONL records");
 } catch (error) {
@@ -40,23 +40,34 @@ fs.mkdirSync(outputDir, { recursive: true });
 const outputPath = path.join(outputDir, "posts.jsonl");
 const seen = new Set();
 if (fs.existsSync(outputPath)) {
-  for (const line of fs.readFileSync(outputPath, "utf8").split(/\\r?\\n/).filter(Boolean)) {
-    try { seen.add(String(JSON.parse(line).id)); } catch { /* leave malformed legacy line untouched */ }
+  for (const line of fs.readFileSync(outputPath, "utf8").split(/\r?\n/).filter(Boolean)) {
+    try {
+      const old = JSON.parse(line);
+      seen.add(String(old.trackedCompetitor || old.authorUsername).toLowerCase() + ":" + String(old.id));
+    } catch { /* leave malformed legacy line untouched */ }
   }
 }
+
 const accepted = [];
 const errors = [];
 for (const [index, record] of records.entries()) {
   try {
     const post = normalizePost(record);
-    if (!allowed.has(post.authorUsername)) continue;
-    if (seen.has(post.id)) continue;
-    seen.add(post.id);
+    if (!allowed.has(post.trackedCompetitor)) continue;
+    const key = post.trackedCompetitor + ":" + post.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
     accepted.push(post);
   } catch (error) {
     errors.push({ row: index + 1, error: error.message });
   }
 }
-if (accepted.length) fs.appendFileSync(outputPath, accepted.map((p) => JSON.stringify(p)).join("\\n") + "\\n");
-console.log(JSON.stringify({ inputRecords: records.length, accepted: accepted.length, skippedOrDuplicate: records.length - accepted.length - errors.length, errors, outputPath }, null, 2));
+if (accepted.length) fs.appendFileSync(outputPath, accepted.map((p) => JSON.stringify(p)).join("\n") + "\n", { encoding: "utf8", mode: 0o600 });
+console.log(JSON.stringify({
+  inputRecords: records.length,
+  accepted: accepted.length,
+  skippedOrDuplicate: records.length - accepted.length - errors.length,
+  errors,
+  outputPath
+}, null, 2));
 if (errors.length) process.exitCode = 1;
