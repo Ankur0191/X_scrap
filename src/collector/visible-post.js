@@ -126,7 +126,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView, 
   const relatedPosts = statusLinks.filter((item) => item.postId !== postId);
   const quotedPost = isQuote ? relatedPosts[0] || null : null;
   const isReply = /replying to/i.test(fullCardText);
-  const replyingToMatch = fullCardText.match(/replying to\\s+@([A-Za-z0-9_]{1,15})/i);
+  const replyingToMatch = fullCardText.match(/replying to\s+@([A-Za-z0-9_]{1,15})/i);
   const replyingToUsername = replyingToMatch ? replyingToMatch[1].toLowerCase() : null;
   const isPinned = /\bpinned\b/i.test(socialContext) || /\bpinned\b/i.test(fullCardText.slice(0, 120));
   const relationships = [
