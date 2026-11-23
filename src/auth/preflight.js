@@ -22,8 +22,20 @@ if (!status.exists || !status.looksInitialized) {
   const answer = (await ask("No initialized profile. Open headed Chromium for manual login? [y/N] ")).toLowerCase();
   if (answer === "y" || answer === "yes") {
     const script = fileURLToPath(new URL("./manual-session.js", import.meta.url));
-    const child = spawn(process.execPath, [script], { stdio: "inherit" });
-    child.on("exit", (code) => { process.exitCode = code ?? 1; });
+    const childExitCode = await new Promise((resolve) => {
+      const child = spawn(process.execPath, [script], { stdio: "inherit" });
+      child.once("error", (error) => {
+        console.error("Could not start manual login: " + error.message);
+        resolve(1);
+      });
+      child.once("exit", (code) => resolve(code ?? 1));
+    });
+    if (childExitCode !== 0) {
+      console.error("Manual login did not complete successfully.");
+      process.exitCode = childExitCode;
+    } else {
+      console.log("Manual login flow completed. Run npm run auth:check to verify the saved session.");
+    }
   } else {
     console.log("Run npm run auth:setup when ready.");
   }
