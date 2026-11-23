@@ -82,6 +82,24 @@ Clusters include complaint/service categories, public-author counts, month-by-mo
 
 The final reasoning instructions are in `nlp-engine/prompts/strategic-analyst-system.md`. They require the downstream model to cite post/reply IDs and exact source evidence, distinguish official claims from customer reports, and separate observed impact from hypotheses.
 
+## Generate final domain briefs
+
+The final reasoning call is optional and requires an OpenAI-compatible Chat Completions endpoint:
+
+```powershell
+$env:REASONING_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:REASONING_MODEL = "YOUR_INSTRUCT_MODEL"
+# For an authenticated endpoint:
+# $env:REASONING_API_KEY = "your-key"
+python nlp-engine\scripts\generate_brief.py
+```
+
+The script generates one brief per enabled domain, using aggregated clusters and a limited number of supporting evidence excerpts. It computes coverage itself and validates the response against the JSON Schema. It does not claim complete public-thread coverage from visible-end signals. Use a local endpoint to keep source excerpts on your machine; a hosted model receives only the selected evidence excerpts and aggregate data.
+
+Outputs:
+- `data/output/competitor-brief-tic.json`
+- `data/output/competitor-brief-aspire_lifestyle.json`
+
 ## Files
 
 - Input: `data/output/conversation-365d.jsonl`
