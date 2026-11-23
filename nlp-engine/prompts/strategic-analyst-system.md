@@ -32,7 +32,7 @@ Produce an executive intelligence brief that answers:
 - Include a short verbatim evidence quote for each important finding.
 - Distinguish the source author's statement from your interpretation.
 - Distinguish a competitor's own promotional/official claim from a customer/public complaint and from an independently corroborated fact.
-- A customer allegation is a reported claim, not proof that the organisation failed.
+- An external account is not automatically a customer. A customer allegation is a reported claim, not proof that the organisation failed.
 - A negative sentiment label alone is not a complaint.
 - One complaint does not prove a systematic competitor weakness.
 - A repeated theme is still a hypothesis until checked against original threads, independent evidence and any public company response.
