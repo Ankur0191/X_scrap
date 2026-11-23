@@ -1,6 +1,10 @@
 node_modules/
+.venv/
+__pycache__/
+*.py[cod]
 .local/
 playwright/.auth/
+models/
 data/inbox/*
 !data/inbox/.gitkeep
 data/output/*
