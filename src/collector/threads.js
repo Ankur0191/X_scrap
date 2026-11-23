@@ -194,6 +194,10 @@ try {
         }
         if (new Date(post.createdAt) < cutoff) continue;
 
+        // Cards remain mounted across scroll screens. Once a post has been
+        // classified as a reply in this root, do not reclassify it as unrelated.
+        if (visibleReplyIds.has(post.id)) continue;
+
         // Prefer explicit reply context. X sometimes omits "Replying to" on
         // inline replies, so allow a bounded positional fallback only when the
         // root is visible on this same screen and its own visible reply count
@@ -230,6 +234,7 @@ try {
         post.postType = "reply";
         post.replyDetectionMethod = replyClassification.method;
         const key = rootId + ":" + post.id;
+        unclassifiedCardIds.delete(post.id);
         visibleReplyIds.add(post.id);
 
         const snapshotKey = tracked + ":" + post.id;
