@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
 const threadLimit = Math.max(1, Number(config.collection?.monitorThreadRootsPerCycle || 5));
+const windowDays = Math.max(1, Number(config.collection?.windowDays || 365));
 const node = process.execPath;
 const startedAt = new Date().toISOString();
 
@@ -36,9 +37,9 @@ const steps = [
     args: []
   },
   {
-    name: "audit_dataset",
+    name: "audit_merged_conversation_dataset",
     script: "src/ingest/audit.js",
-    args: []
+    args: ["data/output/conversation-" + windowDays + "d.jsonl"]
   }
 ];
 
@@ -46,7 +47,7 @@ const results = [];
 let failed = false;
 console.log("Rivalmap X intelligence monitoring cycle");
 console.log("Started: " + startedAt);
-console.log("Rolling window: " + Number(config.collection?.windowDays || 365) + " days");
+console.log("Rolling window: " + windowDays + " days");
 console.log("Conversation roots this cycle: " + threadLimit);
 
 for (const step of steps) {
