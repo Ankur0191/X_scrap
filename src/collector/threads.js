@@ -168,6 +168,7 @@ try {
     let newRepliesForRoot = 0;
     let unclassifiedForRoot = 0;
     const visibleReplyIds = new Set();
+    const unclassifiedCardIds = new Set();
     const knownByAuthor = new Map([[String(rootPost.rootAuthorUsername).toLowerCase(), rootId]]);
     let visibleMoreReplyControl = false;
 
@@ -190,7 +191,21 @@ try {
         // X's conversation UI can also show related or recommended cards.
         // Store a response only where the rendered card indicates reply context.
         if (!post.isReply) {
-          unclassifiedThisScreen += 1;
+          // Count unique visible cards, not the same persistent card once per scroll screen.
+          if (!unclassifiedCardIds.has(post.id)) {
+            unclassifiedCardIds.add(post.id);
+            unclassifiedThisScreen += 1;
+            console.log("Unclassified visible card: " + JSON.stringify({
+              id: post.id,
+              authorUsername: post.authorUsername,
+              createdAt: post.createdAt,
+              url: post.url,
+              socialContext: post.socialContext,
+              text: String(post.text || "").slice(0, 240),
+              replyingToUsername: post.replyingToUsername,
+              postType: post.postType
+            }));
+          }
           continue;
         }
 
@@ -266,7 +281,7 @@ try {
         repliesAdded += 1;
       }
 
-      unclassifiedForRoot += unclassifiedThisScreen;
+      unclassifiedForRoot = unclassifiedCardIds.size;
       status.newRepliesCaptured = newRepliesForRoot;
       status.visibleReplyCount = visibleReplyIds.size;
       status.unclassifiedConversationCards = unclassifiedForRoot;
