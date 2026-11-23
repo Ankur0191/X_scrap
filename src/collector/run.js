@@ -43,6 +43,24 @@ fs.mkdirSync(outputDir, { recursive: true, mode: 0o700 });
 const outputPath = path.join(outputDir, "posts.jsonl");
 const runLogPath = path.join(outputDir, "collection-runs.jsonl");
 const snapshotsPath = path.join(outputDir, "engagement-snapshots.jsonl");
+const checkpointPath = path.join(outputDir, "backfill-checkpoints.json");
+let checkpointState = { version: 1, entries: {} };
+if (fs.existsSync(checkpointPath)) {
+  try {
+    const saved = JSON.parse(fs.readFileSync(checkpointPath, "utf8"));
+    if (saved && typeof saved.entries === "object") checkpointState = saved;
+  } catch {
+    console.warn("Backfill checkpoint file is invalid; starting without resume checkpoints.");
+  }
+}
+const saveCheckpointState = () => {
+  const temporaryPath = checkpointPath + ".tmp";
+  fs.writeFileSync(temporaryPath, JSON.stringify(checkpointState, null, 2) + "\n", {
+    encoding: "utf8",
+    mode: 0o600
+  });
+  fs.renameSync(temporaryPath, checkpointPath);
+};
 const seen = new Set();
 const seenForSnapshotThisRun = new Set();
 const latestSnapshotByPost = new Map();
@@ -147,12 +165,21 @@ try {
         continue;
       }
 
+      const checkpointKey = handle + ":" + timeline;
+      let resumeCheckpoint = backfillWindow ? checkpointState.entries[checkpointKey] || null : null;
+      if (resumeCheckpoint?.createdAt && new Date(resumeCheckpoint.createdAt) < cutoff) {
+        delete checkpointState.entries[checkpointKey];
+        resumeCheckpoint = null;
+        saveCheckpointState();
+      }
+      let resumeCheckpointReached = !resumeCheckpoint;
       let oldBoundaryScreens = 0;
       let noNewScreens = 0;
       let totalNewForTimeline = 0;
       let inWindowSeen = 0;
       let outOfWindowSkipped = 0;
       let oldestInWindow = null;
+      let oldestInWindowId = null;
       let completion = "safety_limit_reached";
 
       for (let scroll = 0; scroll <= maxScrolls; scroll += 1) {
@@ -169,6 +196,11 @@ try {
           if (!post) continue;
           recognizedCards += 1;
           const postDate = new Date(post.createdAt);
+          if (resumeCheckpoint && !resumeCheckpointReached && post.id === String(resumeCheckpoint.postId)) {
+            resumeCheckpointReached = true;
+            oldBoundaryScreens = 0;
+            console.log("Resumed historical scan after checkpoint post " + post.id + ".");
+          }
           if (postDate < cutoff) {
             oldCards += 1;
             outOfWindowSkipped += 1;
@@ -177,7 +209,10 @@ try {
           }
           inWindowCards += 1;
           inWindowSeen += 1;
-          if (!oldestInWindow || postDate < new Date(oldestInWindow)) oldestInWindow = post.createdAt;
+          if (!oldestInWindow || postDate < new Date(oldestInWindow)) {
+            oldestInWindow = post.createdAt;
+            oldestInWindowId = post.id;
+          }
 
           const key = post.trackedCompetitor + ":" + post.id;
           if (!seenForSnapshotThisRun.has(key)) {
@@ -237,12 +272,18 @@ try {
         );
 
         if (backfillWindow) {
-          if (recognizedCards > 0 && inWindowCards === 0 && oldCards > 0) oldBoundaryScreens += 1;
-          else if (inWindowCards > 0) oldBoundaryScreens = 0;
+          if (resumeCheckpointReached) {
+            if (recognizedCards > 0 && inWindowCards === 0 && oldCards > 0) oldBoundaryScreens += 1;
+            else if (inWindowCards > 0) oldBoundaryScreens = 0;
 
-          if (oldBoundaryScreens >= boundaryScreensRequired) {
-            completion = "window_boundary_reached";
-            console.log("Reached the rolling-window boundary across " + oldBoundaryScreens + " successive screens.");
+            if (oldBoundaryScreens >= boundaryScreensRequired) {
+              completion = "window_boundary_reached";
+              console.log("Reached the rolling-window boundary across " + oldBoundaryScreens + " successive screens.");
+              break;
+            }
+          } else if (scroll === maxScrolls) {
+            completion = "checkpoint_not_reached";
+            console.warn("Could not locate the previous backfill checkpoint; leaving the saved checkpoint unchanged.");
             break;
           }
         } else {
@@ -256,8 +297,20 @@ try {
           }
         }
 
+        if (backfillWindow && resumeCheckpointReached && oldestInWindowId && scroll > 0 && scroll % 25 === 0) {
+          checkpointState.entries[checkpointKey] = {
+            competitor: handle,
+            timeline,
+            postId: String(oldestInWindowId),
+            createdAt: oldestInWindow,
+            updatedAt: new Date().toISOString(),
+            reason: "periodic_backfill_checkpoint"
+          };
+          saveCheckpointState();
+        }
+
         if (scroll === maxScrolls) {
-          completion = "safety_limit_reached";
+          completion = resumeCheckpoint && !resumeCheckpointReached ? "checkpoint_not_reached" : "safety_limit_reached";
           console.log("Reached configured safety bound of " + maxScrolls + " scrolls.");
           break;
         }
@@ -268,14 +321,33 @@ try {
         if (stop) throw new Error("Stopped by platform state: " + stop + ". No automated retries will be attempted.");
       }
 
+      if (backfillWindow) {
+        if (completion === "window_boundary_reached") {
+          delete checkpointState.entries[checkpointKey];
+          saveCheckpointState();
+        } else if (completion === "safety_limit_reached" && resumeCheckpointReached && oldestInWindowId) {
+          checkpointState.entries[checkpointKey] = {
+            competitor: handle,
+            timeline,
+            postId: String(oldestInWindowId),
+            createdAt: oldestInWindow,
+            updatedAt: new Date().toISOString(),
+            reason: "safety_limit_resume"
+          };
+          saveCheckpointState();
+        }
+      }
+
       competitorSummary.timelines.push({
         timeline,
         status: "completed",
         completion,
+        resumeCheckpointReached,
         newPosts: totalNewForTimeline,
         inWindowCardsSeen: inWindowSeen,
         outOfWindowCardsSkipped: outOfWindowSkipped,
-        oldestInWindowSeen: oldestInWindow
+        oldestInWindowSeen: oldestInWindow,
+        oldestInWindowPostId: oldestInWindowId
       });
     }
     summary.competitors.push(competitorSummary);
