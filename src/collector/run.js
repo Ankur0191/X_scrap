@@ -128,6 +128,9 @@ try {
   const sessionState = await inspectSignedInState(page);
   if (sessionState === "signed_out") throw new Error("X session is signed out. Run npm run auth:check and sign in manually.");
   if (sessionState === "unknown") {
+    if (process.env.X_NONINTERACTIVE === "1") {
+      throw new Error("Scheduled run stopped: the signed-in session could not be confirmed automatically.");
+    }
     console.log("The UI session detector is inconclusive. Confirm that the signed-in Home timeline is visible.");
     const readline = await import("node:readline/promises");
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
