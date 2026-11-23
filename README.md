@@ -6,6 +6,7 @@ A local-first collection and evidence extraction pipeline for TIC and Aspire Lif
 
 | Organisation | X account | Scope / verification |
 |---|---|---|
+| Ten Technologies Group (formerly Ten Lifestyle Group) | `@tenlifestyle` | Global; Aspire Lifestyle (excluded from TIC backfill) |
 | Applus+ | `@applus` | Global; company social reference |
 | Bureau Veritas | `@bureauveritas` | Global; company newsroom |
 | Cotecna | `@cotecna` | Global; company brochure |
