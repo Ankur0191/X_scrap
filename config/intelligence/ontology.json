@@ -15,7 +15,8 @@
     "issue": "A complaint, operational failure, unmet need, risk or recurring customer problem",
     "competitor": "An organization treated as a market competitor in the current domain",
     "hashtag": "A hashtag explicitly present in the source post",
-    "x_account": "An X account explicitly mentioned or identified as an author"
+    "x_account": "An X account explicitly mentioned or identified as an author",
+    "social_post": "A public social post, reply, quote or repost preserved as a source record"
   },
   "relationTypes": {
     "announced": "Organization announced an event, change or initiative",
@@ -39,7 +40,9 @@
     "replies_to": "A post is a reply to another post",
     "quotes": "A post quotes another post",
     "reposts": "A post reposts another post",
-    "evidenced_by": "An analysis claim is supported by one or more source records"
+    "evidenced_by": "An analysis claim is supported by one or more source records",
+    "reposted_by": "A social post is reposted by an X account",
+    "appears_in_conversation_under": "A reply appears in the conversation rooted at a social post"
   },
   "evidenceRules": {
     "explicitOnly": [
@@ -213,6 +216,66 @@
         "organization",
         "competitor"
       ]
+    },
+    "replies_to": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "social_post"
+      ]
+    },
+    "quotes": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "social_post"
+      ]
+    },
+    "uses_hashtag": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "hashtag"
+      ]
+    },
+    "mentions_account": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "x_account"
+      ]
+    },
+    "reposted_by": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "x_account"
+      ]
+    },
+    "appears_in_conversation_under": {
+      "from": [
+        "social_post"
+      ],
+      "to": [
+        "social_post"
+      ]
     }
-  }
+  },
+  "sourceVoiceTypes": [
+    "customer_or_member",
+    "employee_or_former_employee",
+    "partner_or_supplier",
+    "competitor",
+    "regulator_or_public_authority",
+    "journalist_or_media",
+    "industry_association",
+    "investor_or_analyst",
+    "general_public",
+    "unknown"
+  ]
 }
