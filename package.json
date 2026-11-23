@@ -24,7 +24,11 @@
     "build:conversation": "node src/intelligence/build-conversation.js",
     "collect:cycle": "node src/collector/cycle.js",
     "reason:brief": "python nlp-engine/scripts/generate_brief.py",
-    "graph:build": "python nlp-engine/scripts/build_entity_graph.py"
+    "graph:build": "python nlp-engine/scripts/build_entity_graph.py",
+    "collect:bv": "node src/collector/run.js --account bureauveritas",
+    "collect:intertek": "node src/collector/run.js --account intertek",
+    "backfill:bv:year": "node src/collector/run.js --account bureauveritas --backfill --window-days 365",
+    "backfill:intertek:year": "node src/collector/run.js --account intertek --backfill --window-days 365"
   },
   "dependencies": {
     "playwright": "^1.56.0"
