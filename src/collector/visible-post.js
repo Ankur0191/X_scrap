@@ -1,4 +1,4 @@
-function parseCount(value) {
+export function parseCount(value) {
   if (!value) return null;
   const cleaned = String(value).replace(/,/g, "").trim().toUpperCase();
   const match = cleaned.match(/^(\d+(?:\.\d+)?)([KMB])?$/);
@@ -7,7 +7,7 @@ function parseCount(value) {
   return Math.round(Number(match[1]) * multiplier);
 }
 
-function metricFromLabel(label) {
+export function metricFromLabel(label) {
   const match = String(label).match(/(\d[\d,.]*(?:\.\d+)?\s*[KMB]?)\s+(repl(?:y|ies)|reposts?|likes?|views?)/i);
   if (!match) return null;
   const term = match[2].toLowerCase();
