@@ -90,11 +90,28 @@ for (const item of merged) {
 }
 
 const progressPath = path.join(root, "data/output/thread-progress.jsonl");
-const progress = readJsonl(progressPath);
-const progressSummary = progress.reduce((acc, item) => {
+const progressRows = readJsonl(progressPath);
+const latestProgressByRoot = new Map();
+for (const item of progressRows) {
+  const rootId = String(item.rootPostId || "");
+  if (!rootId) continue;
+  const previous = latestProgressByRoot.get(rootId);
+  if (!previous || new Date(item.checkedAt || 0) >= new Date(previous.checkedAt || 0)) {
+    latestProgressByRoot.set(rootId, item);
+  }
+}
+const latestProgress = [...latestProgressByRoot.values()];
+const progressSummary = latestProgress.reduce((acc, item) => {
   acc[item.status || "unknown"] = (acc[item.status || "unknown"] || 0) + 1;
   return acc;
 }, {});
+const progressByCompetitor = {};
+for (const item of latestProgress) {
+  const handle = String(item.trackedCompetitor || "unknown").toLowerCase();
+  if (!progressByCompetitor[handle]) progressByCompetitor[handle] = {};
+  const status = item.status || "unknown";
+  progressByCompetitor[handle][status] = (progressByCompetitor[handle][status] || 0) + 1;
+}
 
 const manifest = {
   schemaVersion: "1.0.0",
@@ -115,7 +132,10 @@ const manifest = {
     publicThreadRepliesByCompetitor
   },
   threadCoverage: {
+    totalRootPostsInProgressLog: progressRows.length,
+    uniqueRootPosts: latestProgress.length,
     statusCounts: progressSummary,
+    byCompetitor: progressByCompetitor,
     warning: "visible_end_reached indicates the visible UI stopped yielding identified replies; it is not proof that X exposed every reply."
   }
 };
