@@ -158,9 +158,9 @@ async function expandVisibleProbableSpamSections(page, attemptedControlKeys) {
   const inspectAndClick = async (candidate, source) => {
     if (!(await candidate.isVisible({ timeout: 150 }).catch(() => false))) return false;
 
-    const details = await candidate.evaluate((element) => {
+    const details = await candidate.evaluate((element, arg) => {
       const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
-      const target = source === "text"
+      const target = arg.source === "text"
         ? (element.closest('button, [role="button"]') || element)
         : element;
       return {
