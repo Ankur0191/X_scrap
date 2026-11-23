@@ -31,6 +31,7 @@ export function normalizePost(input) {
     isReply: Boolean(input.isReply),
     isRepost: Boolean(input.isRepost),
     isQuote: Boolean(input.isQuote),
+    isPinned: Boolean(input.isPinned),
     postType: input.postType ? String(input.postType) : "post",
     timelineView: input.timelineView ? String(input.timelineView) : null,
     socialContext: input.socialContext ? String(input.socialContext) : "",
