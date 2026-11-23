@@ -1,25 +1,35 @@
-import { chromium } from "playwright";
-import { profileDir } from "./profile.js";
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { launchPersistentSession, inspectSignedInState } from "./session.js";
 
-console.log("Launching a persistent, headed Chromium profile.");
-console.log("Sign in manually only for your own account. This project will not extract or export cookies.");
-console.log("Close the browser window when done; your local browser profile remains on this machine.");
 let context;
+const rl = readline.createInterface({ input, output });
 try {
-  context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    viewport: { width: 1440, height: 960 },
-    args: ["--start-maximized"]
-  });
+  console.log("Opening X in headed Chromium with a persistent local profile.");
+  console.log("Sign in manually. Do not paste passwords, cookies, or verification codes into the terminal.");
+  context = await launchPersistentSession({ headless: false });
   const page = context.pages()[0] ?? await context.newPage();
   await page.goto("https://x.com/login", { waitUntil: "domcontentloaded", timeout: 60000 });
-  console.log("X login page opened. Complete login manually; do not share credentials.");
-  await new Promise((resolve) => context.on("close", resolve));
+
+  const browserClosed = new Promise((resolve) => context.once("close", () => resolve("closed")));
+  const userFinished = rl.question("After login, navigate to Home and press Enter here...")
+    .then(() => "finished")
+    .catch(() => "closed");
+  const result = await Promise.race([browserClosed, userFinished]);
+
+  if (result === "finished") {
+    await page.goto("https://x.com/home", { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.waitForTimeout(1500);
+    const state = await inspectSignedInState(page);
+    console.log("Session check: " + state);
+    if (state === "signed_out") process.exitCode = 1;
+    else if (state === "unknown") console.log("UI state was inconclusive; run npm run auth:check for manual confirmation.");
+  }
+  console.log("Persistent profile is stored locally under .local/browser-profile/ and excluded from Git.");
 } catch (error) {
-  console.error("Could not launch Chromium:", error.message);
+  console.error("Could not complete manual session setup: " + error.message);
   process.exitCode = 1;
 } finally {
-  if (context) {
-    try { await context.close(); } catch { /* already closed */ }
-  }
+  rl.close();
+  if (context) await context.close();
 }
