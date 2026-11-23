@@ -234,12 +234,12 @@ try {
             ...(post.relationships || []),
             {
               type: "appears_in_conversation_under",
-              targetType: "post",
+              targetType: "social_post",
               targetId: rootId
             },
             ...(parentPostId ? [{
               type: "replies_to",
-              targetType: "post",
+              targetType: "social_post",
               targetId: parentPostId
             }] : [])
           ],
