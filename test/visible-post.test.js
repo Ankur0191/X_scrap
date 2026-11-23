@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate, isProbableSpamControlLabel, selectConversationAncestor } from "../src/collector/visible-post.js";
+import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate, isProbableSpamControlLabel, selectConversationAncestor, selectTrackedCompetitors } from "../src/collector/visible-post.js";
 
 test("parses compact engagement counts", () => {
   assert.equal(parseCount("1.2K"), 1200);
@@ -176,4 +176,21 @@ test("recognizes X probable-spam expansion labels without matching unrelated con
   assert.equal(isProbableSpamControlLabel("Probable spam"), false);
   assert.equal(isProbableSpamControlLabel("Hide probable spam"), false);
   assert.equal(isProbableSpamControlLabel("Probable spam replies"), false);
+});
+
+test("selects only enabled competitors in the requested domain", () => {
+  const accounts = [
+    { username: "SGS_SA", domainId: "tic", enabled: true },
+    { username: "applus", domainId: "tic", enabled: true },
+    { username: "tenlifestyle", domainId: "aspire_lifestyle", enabled: true },
+    { username: "kiwa_global", domainId: "tic", enabled: false }
+  ];
+  assert.deepEqual(
+    selectTrackedCompetitors(accounts, { domainFilter: "TIC" }).map((item) => item.username),
+    ["SGS_SA", "applus"]
+  );
+  assert.deepEqual(
+    selectTrackedCompetitors(accounts, { domainFilter: "tic", accountFilter: "@APPLUS" }).map((item) => item.username),
+    ["applus"]
+  );
 });
