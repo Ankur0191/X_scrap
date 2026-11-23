@@ -27,6 +27,7 @@ const queuePath = path.join(root, "data/output/thread-queue-365d.jsonl");
 const replyPath = path.join(root, "data/output/thread-replies.jsonl");
 const snapshotsPath = path.join(root, "data/output/engagement-snapshots.jsonl");
 const progressPath = path.join(root, "data/output/thread-progress.jsonl");
+const activePostsPath = path.join(root, "data/output/posts-" + Number(settings.windowDays || 365) + "d.jsonl");
 const ancestorsPath = path.join(root, "data/output/thread-ancestors.jsonl");
 if (!fs.existsSync(queuePath)) {
   console.error("Thread queue missing. Run npm run threads:queue first.");
@@ -36,12 +37,45 @@ if (headless && !settings.allowHeadless) {
   throw new Error("Headless mode remains disabled. Use headed Chromium for thread validation.");
 }
 
-const queue = fs.readFileSync(queuePath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+let queue = fs.readFileSync(queuePath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
   .filter((item) => !accountFilter || item.trackedCompetitor === accountFilter)
   .filter((item) => !postIdFilter || String(item.rootPostId) === postIdFilter);
 
+let diagnosticAnchorOutsideRootQueue = false;
+if (postIdFilter && queue.length === 0 && fs.existsSync(activePostsPath)) {
+  // Explicit --post-id may target a competitor response discovered on the
+  // with_replies timeline. It is diagnostic-only and never enters the
+  // scheduled independent-root queue.
+  for (const line of fs.readFileSync(activePostsPath, "utf8").split(/\r?\n/).filter(Boolean)) {
+    try {
+      const post = JSON.parse(line);
+      const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
+      const author = String(post.authorUsername || "").replace(/^@/, "").toLowerCase();
+      if (
+        String(post.id) === postIdFilter &&
+        tracked &&
+        author === tracked &&
+        post.timelineView === "with_replies" &&
+        !post.isRepost
+      ) {
+        queue.push({
+          rootPostId: String(post.id),
+          trackedCompetitor: tracked,
+          rootAuthorUsername: author,
+          createdAt: post.createdAt,
+          url: post.url,
+          text: post.text || "",
+          diagnosticOnly: true,
+          source: "explicit_with_replies_diagnostic_anchor"
+        });
+        diagnosticAnchorOutsideRootQueue = true;
+        break;
+      }
+    } catch { /* ignore malformed profile rows */ }
+  }
+}
 if (postIdFilter && queue.length === 0) {
-  console.error("No queued root post matches --post-id " + postIdFilter + ". Rebuild the thread queue and confirm the post is an eligible competitor-authored root.");
+  console.error("No queued root or explicit with_replies diagnostic anchor matches --post-id " + postIdFilter + ".");
   process.exit(2);
 }
 
@@ -131,6 +165,7 @@ const runSummary = {
   rollingWindowDays: Number(settings.windowDays || 365),
   rootsQueued: queue.length,
   rootsSelected: eligible.length,
+  diagnosticAnchorOutsideRootQueue,
   ancestorsAdded: 0,
   roots: []
 };
@@ -140,6 +175,7 @@ try {
   console.log("Selected roots: " + eligible.length + " | Max scrolls/thread: " + maxScrolls);
   console.log("Profile: " + profileDir);
   console.log("Reply detection uses explicit UI context or bounded root-card order when X omits the reply label.");
+  if (diagnosticAnchorOutsideRootQueue) console.log("Explicit diagnostic anchor loaded from with_replies; it remains excluded from the scheduled root queue.");
 
   context = await launchPersistentSession({ headless });
   const page = context.pages()[0] ?? await context.newPage();
