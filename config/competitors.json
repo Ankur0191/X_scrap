@@ -29,7 +29,8 @@
     "includePublicThreadReplies": true,
     "monitorThreadRootsPerCycle": 5,
     "suggestedMonitorIntervalMinutes": 60,
-    "engagementSnapshotIntervalHours": 6
+    "engagementSnapshotIntervalHours": 6,
+    "maxAncestorAgeHours": 72
   },
   "competitors": [
     {
