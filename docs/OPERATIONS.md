@@ -32,6 +32,7 @@
 - Thread queue: newest in-window root posts are tested first; progress and reply IDs persist across runs.
 - Thread status: `newRepliesCaptured` is the number newly appended in that run; `visibleReplyCount` is the unique visible reply cards seen in that scan.
 - Thread authors: conversation records keep competitor-authored replies separate from replies by external public accounts. An external account is not automatically a customer.
+- Ancestor discovery: an earlier external post is saved as a candidate only when its author also appears in a later visible reply under the selected anchor, it precedes the anchor, and it falls within the configured/default 72-hour context window. Candidate edges remain `candidate_unverified`; they do not overwrite `parentPostId`.
 - Historical scan: `npm run collect:all` follows the timeline up to the configured scroll safety bound; it does not guarantee the entire account archive exists in the frontend.
 - UI changes: if card selectors stop matching, the collector reports no visible cards. Update selectors only against the visible UI, never by discovering hidden endpoints.
 - Protected/deactivated/suspended account: stop and record the page state; do not attempt alternate access.
