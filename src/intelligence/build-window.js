@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractHashtagsAndMentions } from "../collector/visible-post.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const args = process.argv.slice(2);
@@ -54,6 +55,18 @@ for (let index = 0; index < lines.length; index += 1) {
     continue;
   }
   seen.add(key);
+  // Rebuild explicit hashtag and @mention metadata from preserved source text.
+  // This also upgrades records collected before tag extraction was added.
+  const derivedTags = extractHashtagsAndMentions(post.text || "");
+  post.hashtags = Array.isArray(post.hashtags) && post.hashtags.length ? post.hashtags : derivedTags.hashtags;
+  post.mentions = Array.isArray(post.mentions) && post.mentions.length ? post.mentions : derivedTags.mentions;
+  const existingRelationships = Array.isArray(post.relationships) ? post.relationships : [];
+  const generatedRelationships = [
+    ...post.hashtags.map((tag) => ({ type: "uses_hashtag", targetType: "hashtag", targetId: tag.normalized, surface: tag.label })),
+    ...post.mentions.map((mention) => ({ type: "mentions_account", targetType: "x_account", targetId: mention.normalized, surface: mention.handle }))
+  ];
+  const relationshipKeys = new Set(existingRelationships.map((item) => item.type + ":" + item.targetId));
+  post.relationships = [...existingRelationships, ...generatedRelationships.filter((item) => !relationshipKeys.has(item.type + ":" + item.targetId))];
   active.push(post);
 }
 
