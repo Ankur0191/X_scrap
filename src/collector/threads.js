@@ -125,6 +125,9 @@ try {
   const sessionState = await inspectSignedInState(page);
   if (sessionState === "signed_out") throw new Error("Session signed out. Run npm run auth:check.");
   if (sessionState === "unknown") {
+    if (process.env.X_NONINTERACTIVE === "1") {
+      throw new Error("Scheduled thread run stopped: the signed-in session could not be confirmed automatically.");
+    }
     if ((await ask("Confirm that the signed-in X Home timeline is visible. Type YES: ")).toUpperCase() !== "YES") {
       throw new Error("Session not confirmed.");
     }
