@@ -1,49 +1,64 @@
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { chromium } from "playwright";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { profileDir, profileStatus } from "./profile.js";
+import { inspectSignedInState, launchPersistentSession } from "./session.js";
+
+const ask = async (question) => {
+  const rl = readline.createInterface({ input, output });
+  try { return (await rl.question(question)).trim(); }
+  finally { rl.close(); }
+};
 
 const status = profileStatus();
-console.log("\\n=== X local browser profile preflight ===");
-console.log(`Profile directory: ${status.path}`);
-console.log(`Profile exists: ${status.exists ? "yes" : "no"}`);
-console.log(`Profile initialized: ${status.looksInitialized ? "yes" : "no"}`);
-console.log("Note: cookie presence/expiry is not treated as proof of a valid X session.");
+console.log("\n=== X browser-session preflight ===");
+console.log("Profile directory: " + profileDir);
+console.log("Profile exists: " + (status.exists ? "yes" : "no"));
+console.log("Profile initialized: " + (status.looksInitialized ? "yes" : "no"));
+console.log("Session validity is checked by opening X, not by trusting cookie expiry metadata.");
 
 if (!status.exists || !status.looksInitialized) {
-  console.log("\\nNo initialized local Chromium profile found.");
-  const rl = readline.createInterface({ input, output });
-  const answer = (await rl.question("Open headed Chromium for a manual session setup now? [y/N] ")).trim().toLowerCase();
-  rl.close();
+  const answer = (await ask("No initialized profile. Open headed Chromium for manual login? [y/N] ")).toLowerCase();
   if (answer === "y" || answer === "yes") {
-    const { spawn } = await import("node:child_process");
-    const { projectRoot } = await import("./profile.js");
-    const child = spawn(process.execPath, [new URL("./manual-session.js", import.meta.url).pathname], {
-      cwd: projectRoot, stdio: "inherit"
-    });
-    child.on("exit", (code) => process.exitCode = code ?? 1);
+    const script = fileURLToPath(new URL("./manual-session.js", import.meta.url));
+    const child = spawn(process.execPath, [script], { stdio: "inherit" });
+    child.on("exit", (code) => { process.exitCode = code ?? 1; });
   } else {
     console.log("Run npm run auth:setup when ready.");
   }
   process.exit(0);
 }
 
-console.log("\\nOpening a headed, read-only sign-in diagnostic. No cookies or tokens are exported.");
 let context;
 try {
-  context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    viewport: { width: 1440, height: 960 }
-  });
+  context = await launchPersistentSession({ headless: false });
   const page = context.pages()[0] ?? await context.newPage();
   await page.goto("https://x.com/home", { waitUntil: "domcontentloaded", timeout: 60000 });
-  console.log(`Current URL: ${page.url()}`);
-  console.log("Complete any challenge or MFA manually. The tool will not bypass it.");
-  const rl = readline.createInterface({ input, output });
-  await rl.question("Press Enter after inspecting the page to close the diagnostic browser...");
-  rl.close();
+  await page.waitForTimeout(1800);
+  let state = await inspectSignedInState(page);
+
+  if (state !== "signed_in") {
+    console.log("\nA valid signed-in session could not be confirmed. Complete login manually in the visible browser.");
+    await page.goto("https://x.com/login", { waitUntil: "domcontentloaded", timeout: 60000 });
+    await ask("After completing login and seeing your signed-in X account, press Enter here...");
+    await page.goto("https://x.com/home", { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.waitForTimeout(1800);
+    state = await inspectSignedInState(page);
+    if (state === "unknown") {
+      const confirmation = (await ask("The UI detector is uncertain. Do you visibly see your signed-in Home timeline? Type YES to confirm: ")).toUpperCase();
+      if (confirmation === "YES") state = "user_confirmed";
+    }
+  }
+
+  if (state === "signed_in" || state === "user_confirmed") {
+    console.log("\nSession check passed. The local Chromium profile will be reused by the collector.");
+  } else {
+    console.error("\nSession was not confirmed. Complete login manually and run npm run auth:check again.");
+    process.exitCode = 1;
+  }
 } catch (error) {
-  console.error("Preflight failed:", error.message);
+  console.error("Session preflight failed: " + error.message);
   process.exitCode = 1;
 } finally {
   if (context) await context.close();
