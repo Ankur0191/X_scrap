@@ -160,6 +160,14 @@ python nlp-engine\scripts\analyze_jsonl.py --limit 10
 
 The script automatically selects the TIC or Aspire taxonomy using each competitor's `domainId`. Remove `--limit 10` to process all available conversation records. Output: `data/output/enriched-posts.jsonl`.
 
+Build the typed entity and relationship graph:
+
+```powershell
+npm run graph:build
+```
+
+It writes `data/output/entity-graph.json` with stable entity IDs, typed directed edges, evidence IDs and URLs, and validation status. Explicit social edges (hashtags, mentions, quotes, reposts, thread roots and parent replies) are combined with GLiNER relation candidates. Untyped or incompatible model relations remain unvalidated.
+
 Aggregate complaint and event patterns into evidence-linked clusters:
 
 ```powershell
@@ -183,7 +191,7 @@ $env:REASONING_MODEL = "YOUR_INSTRUCT_MODEL"
 python nlp-engine\scripts\generate_brief.py
 ```
 
-The script reads the domain taxonomies and coverage manifests, sends only aggregated clusters plus bounded evidence excerpts, and writes:
+The script reads domain taxonomies, coverage manifests and a bounded entity-graph summary; it sends aggregated clusters plus selected evidence excerpts, and writes:
 - `data/output/competitor-brief-tic.json`
 - `data/output/competitor-brief-aspire_lifestyle.json`
 
