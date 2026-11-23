@@ -11,10 +11,13 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | quotedText | string[] | Visible quoted content, when detected |
 | quotedPostId | string or null | Quoted post ID, when the visible card exposes it |
 | relatedPosts | object[] | Other visible status links associated with the card |
+| relatedPosts | object[] | Other visible status links associated with the card |
 | createdAt | ISO-8601 string | Publication timestamp normalised to UTC |
 | url | string | Visible post permalink |
 | hashtags | object[] | Explicit hashtags from primary text, including normalised label and text offsets |
 | mentions | object[] | Explicit @mentions from primary text |
+| quotedHashtags | object[] | Explicit hashtags in visible quoted text |
+| quotedMentions | object[] | Explicit @mentions in visible quoted text |
 | quotedHashtags | object[] | Explicit hashtags in separately visible quoted text |
 | quotedMentions | object[] | Explicit @mentions in separately visible quoted text |
 | relationships | object[] | Candidate edges such as uses_hashtag, mentions_account, quotes and reposts |
@@ -24,7 +27,11 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | isRepost | boolean | Visible repost social context |
 | isQuote | boolean | A quoted post was detected in the card |
 | isPinned | boolean | Best-effort visible pinned indicator |
-| conversationRootId | string or null | Root post for a third-party conversation reply; not populated by profile timeline collection yet |
+| conversationRootId | string or null | Root post ID for a public thread reply |
+| conversationRootIds | string[] | Root post IDs when one reply record is associated with multiple root contexts |
+| parentPostId | string or null | Direct parent when explicitly identified in the visible thread |
+| replyingToUsername | string or null | Account handle shown in visible "Replying to" context |
+| isThreadReply | boolean | Whether the record came from the public conversation reply collector |
 | parentPostId | string or null | Direct parent when explicitly captured |
 | postType | string | post, reply, repost or quote |
 | timelineView | string | posts or with_replies; discovery location, not post type |
