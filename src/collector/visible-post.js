@@ -96,7 +96,13 @@ export function classifyVisibleThreadReply({
   alreadyClassifiedCount = 0
 }) {
   if (explicitReply) {
-    return { isReply: true, method: "explicit_reply_context" };
+    const appearsAfterRoot = Number.isInteger(candidateIndex) &&
+      Number.isInteger(rootIndex) &&
+      rootIndex >= 0 &&
+      candidateIndex > rootIndex;
+    return appearsAfterRoot
+      ? { isReply: true, method: "explicit_reply_context" }
+      : { isReply: false, method: null };
   }
 
   const replyCount = Number(rootReplyCount);
