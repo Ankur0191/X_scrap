@@ -5,7 +5,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { launchPersistentSession, inspectSignedInState } from "../auth/session.js";
 import { profileDir } from "../auth/profile.js";
-import { extractVisiblePost, detectStopCondition } from "./visible-post.js";
+import { extractVisiblePost, detectStopCondition, classifyVisibleThreadReply } from "./visible-post.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
@@ -126,7 +126,7 @@ try {
   console.log("X visible conversation collector");
   console.log("Selected roots: " + eligible.length + " | Max scrolls/thread: " + maxScrolls);
   console.log("Profile: " + profileDir);
-  console.log("Only reply cards explicitly identified by visible reply context are stored.");
+  console.log("Reply detection uses explicit UI context or bounded root-card order when X omits the reply label.");
 
   context = await launchPersistentSession({ headless });
   const page = context.pages()[0] ?? await context.newPage();
@@ -164,6 +164,8 @@ try {
     if (stopAtOpen) throw new Error("Stopped by platform state: " + stopAtOpen);
 
     let rootVisible = false;
+    let rootReplyCount = null;
+    let rootCreatedAt = null;
     let stableScreens = 0;
     let newRepliesForRoot = 0;
     let unclassifiedForRoot = 0;
@@ -177,6 +179,7 @@ try {
       const count = await articles.count();
       let newThisScreen = 0;
       let unclassifiedThisScreen = 0;
+      let rootArticleIndex = -1;
 
       for (let index = 0; index < count; index += 1) {
         const card = articles.nth(index);
@@ -184,13 +187,27 @@ try {
         if (!post) continue;
         if (post.id === rootId) {
           rootVisible = true;
+          rootArticleIndex = index;
+          rootReplyCount = post.metrics?.replies ?? rootReplyCount;
+          rootCreatedAt = post.createdAt;
           continue;
         }
         if (new Date(post.createdAt) < cutoff) continue;
 
-        // X's conversation UI can also show related or recommended cards.
-        // Store a response only where the rendered card indicates reply context.
-        if (!post.isReply) {
+        // Prefer explicit reply context. X sometimes omits "Replying to" on
+        // inline replies, so allow a bounded positional fallback only when the
+        // root is visible on this same screen and its own visible reply count
+        // supports another reply card.
+        const replyClassification = classifyVisibleThreadReply({
+          explicitReply: post.isReply,
+          candidateIndex: index,
+          rootIndex: rootArticleIndex,
+          rootReplyCount,
+          candidateCreatedAt: post.createdAt,
+          rootCreatedAt,
+          alreadyClassifiedCount: visibleReplyIds.size
+        });
+        if (!replyClassification.isReply) {
           // Count unique visible cards, not the same persistent card once per scroll screen.
           if (!unclassifiedCardIds.has(post.id)) {
             unclassifiedCardIds.add(post.id);
@@ -209,6 +226,9 @@ try {
           continue;
         }
 
+        post.isReply = true;
+        post.postType = "reply";
+        post.replyDetectionMethod = replyClassification.method;
         const key = rootId + ":" + post.id;
         visibleReplyIds.add(post.id);
 
@@ -248,7 +268,7 @@ try {
 
         const parentPostId = post.replyingToUsername
           ? (knownByAuthor.get(post.replyingToUsername) || null)
-          : null;
+          : replyClassification.method === "root_reply_count_order" ? rootId : null;
         const reply = {
           ...post,
           trackedCompetitor: tracked,
