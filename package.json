@@ -15,7 +15,8 @@
     "ingest:sample": "node src/ingest/cli.js --input data/sample/authorized-sample.jsonl",
     "test": "node --test",
     "collect:ten": "node src/collector/run.js --account tenlifestyle",
-    "collect:sgs": "node src/collector/run.js --account SGS_SA"
+    "collect:sgs": "node src/collector/run.js --account SGS_SA",
+    "audit:data": "node src/ingest/audit.js"
   },
   "dependencies": {
     "playwright": "^1.56.0"
