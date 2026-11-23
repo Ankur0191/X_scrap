@@ -181,10 +181,11 @@ Possible opportunity signals:
 2. `thread-replies.jsonl`: visible public replies linked to conversation root IDs.
 3. `conversation-365d.jsonl`: deduplicated profile records and public thread replies, ready for NLP.
 4. `enriched-posts.jsonl`: per-record entities, classifications, candidate/validated relations and extraction provenance.
-5. `engagement-snapshots.jsonl`: time-stamped visible replies/reposts/likes/views observations.
-6. `signal-clusters.json`: recurring complaint/service clusters, event clusters, monthly counts and supporting evidence.
-7. `preliminary-competitor-brief.json`: candidate opportunities and analyst validation steps.
-8. `intelligence-events.jsonl`, `entity-graph.jsonl` and `competitor-brief.json`: planned final reasoning/graph outputs once the second-stage analyst model is benchmarked and enabled.
+5. `entity-graph.json`: typed entity nodes and directed social/business relationship edges with source evidence.
+6. `engagement-snapshots.jsonl`: time-stamped visible replies/reposts/likes/views observations.
+7. `signal-clusters.json`: recurring complaint/service clusters, event clusters, monthly counts and supporting evidence.
+8. `preliminary-competitor-brief.json`: candidate opportunities and analyst validation steps.
+9. `intelligence-events.jsonl` and `competitor-brief.json`: planned final reasoning outputs once the second-stage analyst model is benchmarked and enabled.
 
 See:
 - `schemas/intelligence-event.schema.json`
