@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { isThreadRootCandidate } from "./visible-post.js";
 const inputPath = path.join(root, "data/output/posts-365d.jsonl");
 const queuePath = path.join(root, "data/output/thread-queue-365d.jsonl");
 
@@ -16,9 +17,9 @@ const lines = fs.readFileSync(inputPath, "utf8").split(/\r?\n/).filter(Boolean);
 for (const line of lines) {
   let post;
   try { post = JSON.parse(line); } catch { continue; }
+  if (!isThreadRootCandidate(post)) continue;
   const tracked = String(post.trackedCompetitor || "").toLowerCase();
   const author = String(post.authorUsername || "").toLowerCase();
-  if (!tracked || author !== tracked || post.isReply || post.isRepost) continue;
   const key = tracked + ":" + String(post.id);
   if (!unique.has(key)) {
     unique.set(key, {
