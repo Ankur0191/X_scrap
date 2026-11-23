@@ -28,13 +28,16 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
   for (let index = 0; index < await permalinkLinks.count(); index += 1) {
     const href = await permalinkLinks.nth(index).getAttribute("href");
     if (!href) continue;
-    const match = href.match(/^\/?([^/?#]+)\/status\/(\d+)/i);
-    if (match) {
-      permalink = new URL(href, "https://x.com").toString();
-      authorUsername = decodeURIComponent(match[1]).replace(/^@/, "").toLowerCase();
-      postId = match[2];
-      break;
-    }
+    try {
+      const candidate = new URL(href, "https://x.com");
+      const match = candidate.pathname.match(/^\/([^/]+)\/status\/(\d+)/i);
+      if (match) {
+        permalink = candidate.toString();
+        authorUsername = decodeURIComponent(match[1]).replace(/^@/, "").toLowerCase();
+        postId = match[2];
+        break;
+      }
+    } catch { /* ignore malformed/non-post anchors */ }
   }
   if (!permalink || !postId || !authorUsername) return null;
 
@@ -85,6 +88,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
 
   const isQuote = tweetTexts.length > 1;
   const isReply = /replying to/i.test(fullCardText);
+  const isPinned = /\bpinned\b/i.test(socialContext) || /\bpinned\b/i.test(fullCardText.slice(0, 120));
   return {
     id: postId,
     trackedCompetitor: trackedCompetitor.toLowerCase(),
@@ -98,6 +102,7 @@ export async function extractVisiblePost(card, trackedCompetitor, timelineView) 
     isReply,
     isRepost,
     isQuote,
+    isPinned,
     postType: isRepost ? "repost" : isQuote ? "quote" : isReply ? "reply" : "post",
     timelineView,
     socialContext,
