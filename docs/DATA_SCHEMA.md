@@ -18,7 +18,9 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | quotedHashtags | object[] | Explicit hashtags in visible quoted text |
 | quotedMentions | object[] | Explicit @mentions in visible quoted text |
 | relationships | object[] | Candidate edges such as uses_hashtag, mentions_account, quotes and reposts |
-| metrics | object | Visible replies, reposts, likes and views; unavailable values remain null |
+| metrics | object | Visible replies, reposts, likes and views at initial collection; unavailable values remain null |
+| engagementHistory | object | Latest and previous visible count snapshots, observed changes and up to 10 recent snapshots |
+|
 | media | object[] | Visible image alt/display URL and video-presence metadata |
 | isReply | boolean | Best-effort reply indicator from visible UI context |
 | isRepost | boolean | Visible repost social context |
