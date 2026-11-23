@@ -94,10 +94,6 @@ for (const ancestor of readJsonl(ancestorsPath)) {
       ...(ancestorRecord.candidateReplyIds || []),
       ...(Array.isArray(ancestor.candidateReplyIds) ? ancestor.candidateReplyIds.map(String) : [])
     ])];
-    ancestorRecord.relationships = [
-      ...(ancestorRecord.relationships || []),
-      relationship
-    ];
   }
 
   ancestorRecord.relationships = [
