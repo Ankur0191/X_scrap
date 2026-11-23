@@ -289,6 +289,7 @@ try {
   console.log(JSON.stringify(summary, null, 2));
 } catch (error) {
   summary.accepted = acceptedTotal;
+  summary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   summary.completedAt = new Date().toISOString();
   summary.error = error.message;
   fs.appendFileSync(runLogPath, JSON.stringify(summary) + "\n", "utf8");
