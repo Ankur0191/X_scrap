@@ -47,6 +47,7 @@ Current profile collection captures:
 - Image/video presence and visible media references
 - Hashtags, @mentions, quote/repost references where the UI exposes them
 - Basic relationship edges for tags, mentions, quotes and reposts
+- Engagement snapshots when visible counts change or the configured interval expires
 
 ## 3. Build the active window
 
