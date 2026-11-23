@@ -12,7 +12,7 @@ const windowDays = Number.isFinite(requestedDays) && requestedDays > 0
   : Number(config.collection?.windowDays || 365);
 
 const inputPath = path.join(root, "data/output/posts.jsonl");
-const outputPath = path.join(root, "data/output/posts-365d.jsonl");
+const outputPath = path.join(root, "data/output", "posts-" + windowDays + "d.jsonl");
 const manifestPath = path.join(root, "data/output/window-manifest.json");
 
 if (!fs.existsSync(inputPath)) {
@@ -92,7 +92,7 @@ const manifest = {
     recordCount: lines.filter((line) => line.trim()).length
   },
   activeDataset: {
-    path: "data/output/posts-365d.jsonl",
+    path: "data/output/posts-" + windowDays + "d.jsonl",
     recordCount: active.length,
     byCompetitor,
     byPostType,
