@@ -1,3 +1,16 @@
+export function isThreadRootCandidate(post) {
+  if (!post || typeof post !== "object") return false;
+  const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
+  const author = String(post.authorUsername || "").replace(/^@/, "").toLowerCase();
+  return Boolean(
+    tracked &&
+    author === tracked &&
+    post.timelineView === "posts" &&
+    !post.isReply &&
+    !post.isRepost
+  );
+}
+
 export function parseCount(value) {
   if (!value) return null;
   const cleaned = String(value).replace(/,/g, "").trim().toUpperCase();
