@@ -30,6 +30,7 @@ Each line in `data/output/posts.jsonl` is one collected source record.
 | parentPostId | string or null | Direct parent when explicitly identified in the visible thread |
 | replyingToUsername | string or null | Account handle shown in visible "Replying to" context |
 | isThreadReply | boolean | Whether the record came from the public conversation reply collector |
+| replyDetectionMethod | string or null | How the collector identified a thread reply: explicit UI reply context or bounded root-reply-count ordering when X omits the label |
 | postType | string | post, reply, repost or quote |
 | timelineView | string | posts or with_replies; discovery location, not post type |
 | socialContext | string | Visible context label |
