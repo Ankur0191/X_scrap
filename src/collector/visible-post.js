@@ -34,7 +34,8 @@ export function selectConversationAncestor({
 
 export function isProbableSpamControlLabel(value) {
   const label = String(value || "").replace(/\s+/g, " ").trim();
-  return /^show\b.*\bprobable\s+spams?\b/i.test(label);
+  return /\bprobable\s+spams?\b/i.test(label) &&
+    /\b(show|view|display|reveal|load)\b/i.test(label);
 }
 
 export function isThreadRootCandidate(post) {
