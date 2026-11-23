@@ -84,34 +84,22 @@ npm run threads:queue
 
 Then resume public conversation collection in bounded batches or use the recurring cycle.
 
-## 5. Collect public conversation replies
+## 5. Ongoing public conversation collection
 
-Build a queue of original in-window competitor posts:
-
-```powershell
-npm run threads:queue
-```
-
-Start with three threads for selector validation:
+The queue contains original competitor posts within the current 365-day window. Continue collecting in bounded batches:
 
 ```powershell
-npm run collect:threads -- --limit 3
-```
-
-After inspecting the resulting replies and progress report, continue the queue:
-
-```powershell
-npm run collect:threads
+npm run collect:threads -- --limit 10
 npm run build:conversation
 ```
 
-For ongoing monitoring, run one complete cycle:
+Repeat bounded batches after inspecting progress, or use the recurring cycle:
 
 ```powershell
 npm run collect:cycle
 ```
 
-A cycle refreshes the latest competitor timelines, rebuilds the rolling 365-day file, refreshes the conversation queue, scans up to five fairly scheduled thread roots, merges the conversation dataset and runs the audit. The five-root limit is configurable as `collection.monitorThreadRootsPerCycle`.
+A cycle refreshes the latest competitor timelines, rebuilds the rolling 365-day file, refreshes the conversation queue, scans up to five fairly scheduled thread roots, merges the conversation dataset and audits it. The five-root limit is configurable as `collection.monitorThreadRootsPerCycle`.
 
 The conversation collector captures reply cards that the visible interface identifies as replies and links them to the root post. It records partial/visible-end states and unclassified cards. **A visible end is not proof that X exposed every reply**, so never report complete public-reply coverage without a separate validation step. The queue can be resumed; previously completed roots are revisited after the configured refresh interval.
 
