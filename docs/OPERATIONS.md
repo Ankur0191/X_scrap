@@ -9,24 +9,25 @@
 
 ## Authentication / browser profile
 
-- Profile missing: run `npm run auth:setup`; profile data stays under `.local/`.
+- Profile missing: run `npm run auth:check`; answer yes to launch the manual login child process. The preflight waits for that process to finish.
 - Session expired: run `npm run auth:check` and sign in manually in headed Chromium.
 - MFA / CAPTCHA / security challenge: complete manually; the collector must not bypass it.
 - Browser update mismatch: run `npx playwright install chromium`.
 - Profile locked: close all Chromium processes using this profile before restarting.
-- Concurrent runs: never launch two jobs against the same persistent profile.
+- Concurrent runs: never launch two jobs against the same browser profile.
 - Cookie expiry: do not infer session validity from cookie timestamps; verify the signed-in X UI.
 
 ## Visible timeline collector
 
 - Targets: only enabled handles in `config/competitors.json`.
 - Timeline views: Posts and Replies.
-- Reposts: only recognized as competitor reposts when visible social context identifies the tracked account.
+- Reposts: recognized from the visible social-context label on the tracked profile timeline.
 - Quotes: preserve the visible main text and any separately visible quoted text.
 - Media: save visible image alt text and displayed media URL; do not download media bytes.
 - Metrics: parse only counts displayed in visible action labels; absent values stay null.
-- Pinned posts: may appear in the timeline; no special pin-state guarantee is made yet.
+- Pinned posts: the `isPinned` field is a best-effort visible-text indicator, not a guarantee.
 - Duplicate post IDs: deduplicate per tracked competitor, not globally.
+- Latest-first scan: does not stop on a single overlapping screen; it stops after the configured number of consecutive screens with no newly collected posts.
 - Historical scan: `npm run collect:all` follows the timeline up to the configured scroll safety bound; it does not guarantee the entire account archive exists in the frontend.
 - UI changes: if card selectors stop matching, the collector reports no visible cards. Update selectors only against the visible UI, never by discovering hidden endpoints.
 - Protected/deactivated/suspended account: stop and record the page state; do not attempt alternate access.
