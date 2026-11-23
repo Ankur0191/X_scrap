@@ -31,6 +31,8 @@ jobs:
           find src test -type f -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Check Python syntax
         run: python -m compileall -q nlp-engine
+      - name: Run Python unit tests
+        run: python -m unittest discover -s nlp-engine/tests -v
       - name: Validate JSON configuration and schemas
         run: |
           python - <<'PY'
