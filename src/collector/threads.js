@@ -415,6 +415,16 @@ try {
     // We only retain an earlier external card when its author also appears in a
     // captured external reply under this root. This is a candidate relationship,
     // not a claim that the parent edge has been conclusively verified.
+    if (rootVisible && lastRootArticleIndex >= 0) {
+      // A tracked competitor post displayed above the selected anchor is not
+      // an external parent candidate; exclude it from unclassified-card counts.
+      for (const item of unclassifiedCards.values()) {
+        if (item.index < lastRootArticleIndex && item.post.authorUsername === tracked) {
+          unclassifiedCardIds.delete(item.post.id);
+        }
+      }
+    }
+
     if (rootVisible && visibleExternalReplyAuthors.size && lastRootArticleIndex >= 0 && rootCreatedAt) {
       const ancestorResult = selectConversationAncestor({
         candidates: [...unclassifiedCards.values()]
