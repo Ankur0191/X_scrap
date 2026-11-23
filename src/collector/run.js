@@ -17,7 +17,7 @@ if (!Array.isArray(config.competitors) || !config.competitors.some((item) => ite
   throw new Error("No enabled competitors in config/competitors.json");
 }
 if (headless && !config.collection?.allowHeadless) {
-  throw new Error("Headless mode is disabled in config/competitors.json. Use headed Chromium until written authorization covers headless operation.");
+  throw new Error("Headless mode is disabled in config/competitors.json. Use headed Chromium until written authorization covers it.");
 }
 const competitors = config.competitors.filter((item) =>
   item.enabled && (!accountFilter || item.username.toLowerCase() === accountFilter)
@@ -31,7 +31,7 @@ const scrollDelayMs = Number(settings.scrollDelayMs || 2500);
 const emptyPagesToStop = Number(settings.emptyPagesToStop || 3);
 
 const outputDir = path.join(root, "data/output");
-fs.mkdirSync(outputDir, { recursive: true });
+fs.mkdirSync(outputDir, { recursive: true, mode: 0o700 });
 const outputPath = path.join(outputDir, "posts.jsonl");
 const runLogPath = path.join(outputDir, "collection-runs.jsonl");
 const seen = new Set();
@@ -45,6 +45,16 @@ if (fs.existsSync(outputPath)) {
 }
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const visibleAlerts = async (page) => {
+  const alerts = page.locator('[role="alert"], [data-testid="toast"]');
+  const texts = [];
+  for (let index = 0; index < await alerts.count(); index += 1) {
+    const alert = alerts.nth(index);
+    if (await alert.isVisible()) texts.push(await alert.innerText());
+  }
+  return texts.join("\n");
+};
+
 const runStarted = new Date().toISOString();
 let context;
 let acceptedTotal = 0;
@@ -88,6 +98,9 @@ try {
       console.log("Opening visible timeline: " + targetUrl);
       await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForTimeout(3500);
+
+      const navigationStop = detectStopCondition(await visibleAlerts(page), page.url());
+      if (navigationStop) throw new Error("Stopped by platform state: " + navigationStop + " on " + handle);
 
       let cardsFound = await page.locator('article[data-testid="tweet"]').count();
       if (!cardsFound) {
@@ -148,8 +161,7 @@ try {
 
         await page.mouse.wheel(0, 1250);
         await delay(scrollDelayMs);
-        const bodyText = await page.locator("body").innerText().catch(() => "");
-        const stop = detectStopCondition(bodyText, page.url());
+        const stop = detectStopCondition(await visibleAlerts(page), page.url());
         if (stop) throw new Error("Stopped by platform state: " + stop + ". No automated retries will be attempted.");
       }
 
