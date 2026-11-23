@@ -28,7 +28,8 @@
     "threadStableScreens": 3,
     "includePublicThreadReplies": true,
     "monitorThreadRootsPerCycle": 5,
-    "suggestedMonitorIntervalMinutes": 60
+    "suggestedMonitorIntervalMinutes": 60,
+    "engagementSnapshotIntervalHours": 6
   },
   "competitors": [
     {
