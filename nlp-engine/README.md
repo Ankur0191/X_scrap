@@ -69,6 +69,14 @@ The processor automatically chooses `tic` or `aspire_lifestyle` using each compe
 
 The script resumes by skipping competitor/post IDs already present in the output file.
 
+Build the typed entity and relationship graph:
+
+```powershell
+npm run graph:build
+```
+
+The graph includes social edges for hashtags, mentions, quotes, reposts, replies and thread roots, plus GLiNER relations with ontology validation status. Unvalidated relation candidates remain explicitly marked.
+
 ## Aggregate complaint and event patterns
 
 After enrichment finishes:
