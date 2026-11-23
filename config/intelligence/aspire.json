@@ -97,5 +97,18 @@
     "fraud_or_dispute_spike",
     "fx_or_fee_change",
     "new_country_or_market_entry"
+  ],
+  "journeyStages": [
+    "acquisition_and_eligibility",
+    "card_issuance_and_activation",
+    "payment_authorisation_and_acceptance",
+    "benefit_discovery_and_eligibility",
+    "booking_and_reservation",
+    "benefit_fulfilment_and_service_delivery",
+    "concierge_request_and_resolution",
+    "rewards_earning_and_redemption",
+    "refund_dispute_and_chargeback",
+    "renewal_and_retention",
+    "unknown"
   ]
 }
