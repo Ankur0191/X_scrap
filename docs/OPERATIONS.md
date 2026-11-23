@@ -48,6 +48,16 @@
 - Keep output append-only and back up before any schema migration.
 - Rotate large output files by date before production scale.
 
+## Continuous monitoring
+
+- Run `npm run collect:cycle` for one end-to-end update.
+- The cycle is sequential; it must not overlap another run using the same Chromium profile.
+- The default thread budget is five roots per cycle. New roots are processed before already checked roots; incomplete roots are revisited in least-recently-checked order.
+- Windows Task Scheduler launcher: `scripts/run-cycle.ps1`.
+- Schedule only while the desktop user is logged in because the collector currently uses headed Chromium.
+- Review `data/output/cycle-runs.jsonl` and `data/output/scheduled-monitor.log` after scheduled runs.
+- The suggested interval is 60 minutes in config and must be adjusted to the written X authorisation and observed run duration.
+
 ## Recovery
 
 1. Stop the running Node process.
