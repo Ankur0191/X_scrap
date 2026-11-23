@@ -4,14 +4,22 @@ A local-first collection and evidence extraction pipeline for TIC and Aspire Lif
 
 ## Active competitors
 
-| Organisation | X account | Domain taxonomy |
+| Organisation | X account | Scope / verification |
 |---|---|---|
-| Ten Technologies Group (formerly Ten Lifestyle Group) | `tenlifestyle` | `aspire_lifestyle` |
-| SGS | `SGS_SA` | `tic` |
-| Bureau Veritas | `bureauveritas` | `tic` |
-| Intertek | `Intertek` | `tic` |
+| Applus+ | `@applus` | Global; company social reference |
+| Bureau Veritas | `@bureauveritas` | Global; company newsroom |
+| Cotecna | `@cotecna` | Global; company brochure |
+| DEKRA | `@DEKRA_Konzern` | Global; official social-media guide |
+| Intertek | `@Intertek` | Global; profile/domain match and local collection tested |
+| MISTRAS Group | `@MISTRASGroup` | Global candidate; profile bio matches company domain, but first-party link not found |
+| SGS | `@SGS_SA` | Global; SGS newsroom |
+| TÜV Rheinland | `@tuvcom_presse` | Corporate press |
+| TÜV Rheinland | `@tuvcom_products` | Product safety |
+| TÜV SÜD | `@tuvsudSASIA` | South Asia only; not a global account |
 
-Add more organisations in `config/competitors.json` and assign a `domainId`. The engine is designed for TIC businesses, payment networks, banks, card issuers, travel, hospitality, loyalty and concierge providers.
+Kiwa's `@kiwa_global` is retained in the configuration as a disabled candidate because only a third-party company directory was found; no first-party Kiwa confirmation was located. Its posts are not collected. The previous DEKRA South Africa account is regional and is not substituted for the global `@DEKRA_Konzern` profile.
+
+All handles, profile URLs, evidence URLs, account scopes and verification notes are stored in `config/competitors.json` and the TIC Supabase `social_profiles` registry. Only enabled TIC entries are selected by `--domain tic`.
 
 ## 1. Install and authenticate
 
@@ -26,25 +34,33 @@ npm run auth:check
 
 Sign in manually in headed Chromium when prompted. The persistent profile lives in `.local/browser-profile/`; it is git-ignored and never exported into project source.
 
-## 2. Rolling 365-day profile collection
+## 2. TIC six-month backfill and rolling profile collection
 
-Latest-first incremental runs:
+The TIC-only command selects every enabled competitor with `domainId: "tic"`; it does not collect Ten Lifestyle or other Aspire Lifestyle accounts. The backfill window is 184 elapsed days (23 May 2026 through 23 November 2026 for a run started on 23 November 2026).
 
 ```powershell
-npm run collect:ten
-npm run collect:sgs
-npm run collect:bv
-npm run collect:intertek
+npm run backfill:tic:6m
 ```
 
-Targeted 365-day backfills for the two additional TIC accounts (run one at a time):
+The command processes each enabled TIC profile in sequence, across both `posts` and `with_replies` timelines. It uses the signed-in headed browser profile, preserves existing posts, deduplicates by account and post ID, and stores resumable checkpoints per account/timeline. If the run stops partway through, rerun the same command; completed profiles are deduplicated and unfinished backfills resume from checkpoints.
+
+Per-account recovery commands are also available if a profile needs to be run by itself:
 
 ```powershell
+npm run backfill:applus:6m
 npm run backfill:bv:year
+npm run backfill:cotecna:6m
+npm run backfill:dekra:6m
 npm run backfill:intertek:year
+npm run backfill:mistras:6m
+npm run backfill:tuv-rheinland-press:6m
+npm run backfill:tuv-rheinland-products:6m
+npm run backfill:tuvsud-south-asia:6m
 ```
 
-One-time backfill of all enabled competitors across the last 365 elapsed days:
+Kiwa is deliberately excluded while its X handle remains unverified. TÜV SÜD is included only through its documented South Asia account. MISTRAS is enabled as a profile/domain match but remains marked `profile_exists`, not `official_link_verified`.
+
+The original archive is retained; this six-month scan does not delete older rows or change the default 365-day analysis window. For a full 365-day backfill of all enabled competitors, use:
 
 ```powershell
 npm run backfill:year
