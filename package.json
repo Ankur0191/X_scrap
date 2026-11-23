@@ -18,7 +18,10 @@
     "collect:sgs": "node src/collector/run.js --account SGS_SA",
     "audit:data": "node src/ingest/audit.js",
     "backfill:year": "node src/collector/run.js --backfill --window-days 365",
-    "build:window": "node src/intelligence/build-window.js"
+    "build:window": "node src/intelligence/build-window.js",
+    "threads:queue": "node src/collector/build-thread-queue.js",
+    "collect:threads": "node src/collector/threads.js",
+    "build:conversation": "node src/intelligence/build-conversation.js"
   },
   "dependencies": {
     "playwright": "^1.56.0"
