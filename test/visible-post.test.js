@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply } from "../src/collector/visible-post.js";
+import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate } from "../src/collector/visible-post.js";
 
 test("parses compact engagement counts", () => {
   assert.equal(parseCount("1.2K"), 1200);
@@ -69,4 +69,20 @@ test("does not classify cards that precede the root or predate it", () => {
     candidateIndex: 2,
     candidateCreatedAt: "2026-10-08T01:23:35.000Z"
   }).isReply, false);
+});
+
+
+test("only original competitor Posts timeline entries become conversation roots", () => {
+  const base = {
+    trackedCompetitor: "sgs_sa",
+    authorUsername: "SGS_SA",
+    timelineView: "posts",
+    isReply: false,
+    isRepost: false
+  };
+  assert.equal(isThreadRootCandidate(base), true);
+  assert.equal(isThreadRootCandidate({ ...base, timelineView: "with_replies" }), false);
+  assert.equal(isThreadRootCandidate({ ...base, authorUsername: "customer123" }), false);
+  assert.equal(isThreadRootCandidate({ ...base, isReply: true }), false);
+  assert.equal(isThreadRootCandidate({ ...base, isRepost: true }), false);
 });
