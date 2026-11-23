@@ -39,6 +39,39 @@ export function extractHashtagsAndMentions(text) {
   return { hashtags, mentions };
 }
 
+export function classifyVisibleThreadReply({
+  explicitReply = false,
+  candidateIndex,
+  rootIndex,
+  rootReplyCount,
+  candidateCreatedAt,
+  rootCreatedAt,
+  alreadyClassifiedCount = 0
+}) {
+  if (explicitReply) {
+    return { isReply: true, method: "explicit_reply_context" };
+  }
+
+  const replyCount = Number(rootReplyCount);
+  if (!Number.isInteger(candidateIndex) || !Number.isInteger(rootIndex) || candidateIndex <= rootIndex) {
+    return { isReply: false, method: null };
+  }
+  if (!Number.isFinite(replyCount) || replyCount <= 0 || alreadyClassifiedCount >= replyCount) {
+    return { isReply: false, method: null };
+  }
+
+  const candidateDate = new Date(candidateCreatedAt);
+  const rootDate = new Date(rootCreatedAt);
+  if (Number.isNaN(candidateDate.getTime()) || Number.isNaN(rootDate.getTime()) || candidateDate < rootDate) {
+    return { isReply: false, method: null };
+  }
+
+  // X may omit "Replying to @..." on replies rendered inline under a status page.
+  // In that case, rely only on a card ordered after the visible root, within the
+  // root's visible reply-count budget, and published no earlier than the root.
+  return { isReply: true, method: "root_reply_count_order" };
+}
+
 export async function extractVisiblePost(card, trackedCompetitor, timelineView, options = {}) {
   const time = card.locator("time").first();
   if (!(await time.count())) return null;
