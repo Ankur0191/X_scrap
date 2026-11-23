@@ -68,7 +68,7 @@ The script resumes by skipping competitor/post IDs already present in the output
 
 ## Files
 
-- Input: `data/output/posts-365d.jsonl`
+- Input: `data/output/conversation-365d.jsonl`
 - Output: `data/output/enriched-posts.jsonl`
 
 The service listens only on localhost by default. Keep raw collection and enriched output local until retention, privacy and X authorisation terms are reviewed.
