@@ -8,16 +8,20 @@ import { extractVisiblePost, detectStopCondition } from "./visible-post.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
 const args = process.argv.slice(2);
-const allAvailable = args.includes("--all-available");
+const backfillWindow = args.includes("--backfill") || args.includes("--all-available");
 const accountIndex = args.indexOf("--account");
 const accountFilter = accountIndex >= 0 ? String(args[accountIndex + 1] || "").replace(/^@/, "").toLowerCase() : null;
+const daysIndex = args.indexOf("--window-days");
+const requestedDays = daysIndex >= 0 ? Number(args[daysIndex + 1]) : Number(config.collection?.windowDays || 365);
+const windowDays = Number.isFinite(requestedDays) && requestedDays > 0 ? Math.min(requestedDays, 3650) : 365;
+const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
 const headless = process.env.X_HEADLESS === "1";
 
 if (!Array.isArray(config.competitors) || !config.competitors.some((item) => item.enabled)) {
   throw new Error("No enabled competitors in config/competitors.json");
 }
 if (headless && !config.collection?.allowHeadless) {
-  throw new Error("Headless mode is disabled in config/competitors.json. Use headed Chromium until written authorization covers it.");
+  throw new Error("Headless mode is disabled in config/competitors.json. Keep the first validation headed.");
 }
 const competitors = config.competitors.filter((item) =>
   item.enabled && (!accountFilter || item.username.toLowerCase() === accountFilter)
@@ -26,9 +30,12 @@ if (!competitors.length) throw new Error("No enabled competitor matches --accoun
 
 const settings = config.collection || {};
 const timelines = settings.timelines || ["posts", "with_replies"];
-const maxScrolls = allAvailable ? Number(settings.maxScrollsAll || 250) : Number(settings.maxScrollsLatest || 20);
-const scrollDelayMs = Number(settings.scrollDelayMs || 2500);
-const emptyPagesToStop = Number(settings.emptyPagesToStop || 3);
+const maxScrolls = backfillWindow
+  ? Number(settings.maxScrollsBackfill || 1200)
+  : Number(settings.maxScrollsLatest || 20);
+const scrollDelayMs = Number(settings.scrollDelayMs || 3000);
+const boundaryScreensRequired = Number(settings.boundaryScreensRequired || 3);
+const noNewScreensRequired = Number(settings.noNewScreensRequired || 3);
 
 const outputDir = path.join(root, "data/output");
 fs.mkdirSync(outputDir, { recursive: true, mode: 0o700 });
@@ -40,7 +47,7 @@ if (fs.existsSync(outputPath)) {
     try {
       const item = JSON.parse(line);
       seen.add(String(item.trackedCompetitor || item.authorUsername).toLowerCase() + ":" + String(item.id));
-    } catch { /* preserve malformed old rows and continue */ }
+    } catch { /* preserve malformed historical lines */ }
   }
 }
 
@@ -55,22 +62,28 @@ const visibleAlerts = async (page) => {
   return texts.join("\n");
 };
 
-const runStarted = new Date().toISOString();
+const startedAt = new Date().toISOString();
 let context;
 let acceptedTotal = 0;
 const summary = {
-  startedAt: runStarted,
+  startedAt,
   mode: headless ? "headless" : "headed",
-  scan: allAvailable ? "all-available-bounded" : "latest",
+  scan: backfillWindow ? "rolling-window-backfill" : "latest-incremental",
+  windowDays,
+  cutoff: cutoff.toISOString(),
+  timelineOrderAssumption: "newest_first",
   competitors: [],
-  accepted: 0
+  accepted: 0,
+  outOfWindowSkipped: 0
 };
 
 try {
   console.log("X visible-frontend collector");
   console.log("Mode: " + summary.mode + " | Scan: " + summary.scan);
+  console.log("Rolling window: " + cutoff.toISOString() + " through " + new Date().toISOString());
   console.log("Browser profile: " + profileDir);
-  console.log("Collection reads visible page content only; no hidden endpoints or network interception.");
+  console.log("Only posts inside the rolling window are written. Existing older rows remain untouched.");
+  console.log("Collection reads rendered page content only; no hidden endpoints or network interception.");
 
   context = await launchPersistentSession({ headless });
   const page = context.pages()[0] ?? await context.newPage();
@@ -111,29 +124,55 @@ try {
         const bodyText = await page.locator("body").innerText().catch(() => "");
         const stop = detectStopCondition(bodyText, page.url());
         if (stop) throw new Error("Stopped by platform state: " + stop + " on " + handle);
-        competitorSummary.timelines.push({ timeline, status: "no_visible_post_cards" });
+        competitorSummary.timelines.push({ timeline, status: "no_visible_post_cards", complete: false });
         console.warn("No visible post cards found for " + handle + " (" + timeline + ").");
         continue;
       }
 
-      let emptyPages = 0;
+      let oldBoundaryScreens = 0;
+      let noNewScreens = 0;
       let totalNewForTimeline = 0;
+      let inWindowSeen = 0;
+      let outOfWindowSkipped = 0;
+      let oldestInWindow = null;
+      let completion = "safety_limit_reached";
+
       for (let scroll = 0; scroll <= maxScrolls; scroll += 1) {
         const articles = page.locator('article[data-testid="tweet"]');
         const count = await articles.count();
+        let recognizedCards = 0;
+        let inWindowCards = 0;
+        let oldCards = 0;
         let addedThisScreen = 0;
         let knownThisScreen = 0;
 
         for (let index = 0; index < count; index += 1) {
           const post = await extractVisiblePost(articles.nth(index), handle, timeline);
           if (!post) continue;
+          recognizedCards += 1;
+          const postDate = new Date(post.createdAt);
+          if (postDate < cutoff) {
+            oldCards += 1;
+            outOfWindowSkipped += 1;
+            summary.outOfWindowSkipped += 1;
+            continue;
+          }
+          inWindowCards += 1;
+          inWindowSeen += 1;
+          if (!oldestInWindow || postDate < new Date(oldestInWindow)) oldestInWindow = post.createdAt;
+
           const key = post.trackedCompetitor + ":" + post.id;
           if (seen.has(key)) {
             knownThisScreen += 1;
             continue;
           }
           seen.add(key);
-          const record = { ...post, ingestedAt: new Date().toISOString() };
+          const record = {
+            ...post,
+            windowDays,
+            windowCutoff: cutoff.toISOString(),
+            ingestedAt: new Date().toISOString()
+          };
           fs.appendFileSync(outputPath, JSON.stringify(record) + "\n", { encoding: "utf8", mode: 0o600 });
           addedThisScreen += 1;
           totalNewForTimeline += 1;
@@ -141,18 +180,35 @@ try {
         }
 
         competitorSummary.accepted += addedThisScreen;
-        console.log("Screen " + scroll + ": " + count + " visible cards, " + addedThisScreen + " new, " + knownThisScreen + " already collected.");
+        console.log(
+          "Screen " + scroll +
+          ": " + count + " cards, " + addedThisScreen + " new, " +
+          knownThisScreen + " known, " + inWindowCards + " in-window, " +
+          oldCards + " older than cutoff."
+        );
 
-        if (addedThisScreen === 0) emptyPages += 1;
-        else emptyPages = 0;
+        if (backfillWindow) {
+          if (recognizedCards > 0 && inWindowCards === 0 && oldCards > 0) oldBoundaryScreens += 1;
+          else if (inWindowCards > 0) oldBoundaryScreens = 0;
 
-        // A single screen can contain only overlapping cards from the previous
-        // viewport. Keep scrolling until the configured no-new-screen threshold.
-        if (emptyPages >= emptyPagesToStop) {
-          console.log("No new posts across " + emptyPages + " successive screens; ending timeline scan.");
-          break;
+          if (oldBoundaryScreens >= boundaryScreensRequired) {
+            completion = "window_boundary_reached";
+            console.log("Reached the rolling-window boundary across " + oldBoundaryScreens + " successive screens.");
+            break;
+          }
+        } else {
+          if (addedThisScreen === 0 && knownThisScreen > 0) noNewScreens += 1;
+          else if (addedThisScreen > 0) noNewScreens = 0;
+
+          if (noNewScreens >= noNewScreensRequired) {
+            completion = "existing_data_boundary_reached";
+            console.log("Reached previously collected recent posts across " + noNewScreens + " successive screens.");
+            break;
+          }
         }
+
         if (scroll === maxScrolls) {
+          completion = "safety_limit_reached";
           console.log("Reached configured safety bound of " + maxScrolls + " scrolls.");
           break;
         }
@@ -163,7 +219,15 @@ try {
         if (stop) throw new Error("Stopped by platform state: " + stop + ". No automated retries will be attempted.");
       }
 
-      competitorSummary.timelines.push({ timeline, status: "completed", newPosts: totalNewForTimeline });
+      competitorSummary.timelines.push({
+        timeline,
+        status: "completed",
+        completion,
+        newPosts: totalNewForTimeline,
+        inWindowCardsSeen: inWindowSeen,
+        outOfWindowCardsSkipped: outOfWindowSkipped,
+        oldestInWindowSeen: oldestInWindow
+      });
     }
     summary.competitors.push(competitorSummary);
   }
