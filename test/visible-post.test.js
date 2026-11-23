@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate } from "../src/collector/visible-post.js";
+import { parseCount, metricFromLabel, extractHashtagsAndMentions, classifyVisibleThreadReply, isThreadRootCandidate, selectConversationAncestor } from "../src/collector/visible-post.js";
 
 test("parses compact engagement counts", () => {
   assert.equal(parseCount("1.2K"), 1200);
@@ -85,4 +85,56 @@ test("only original competitor Posts timeline entries become conversation roots"
   assert.equal(isThreadRootCandidate({ ...base, authorUsername: "customer123" }), false);
   assert.equal(isThreadRootCandidate({ ...base, isReply: true }), false);
   assert.equal(isThreadRootCandidate({ ...base, isRepost: true }), false);
+});
+
+
+test("selects an earlier conversation ancestor only when its author also appears in a later captured reply", () => {
+  const result = selectConversationAncestor({
+    rootAuthorUsername: "sgs_sa",
+    rootCreatedAt: "2026-04-17T05:18:33.000Z",
+    externalReplyAuthors: ["harshentrepre"],
+    maxAgeHours: 72,
+    candidates: [
+      {
+        id: "marketing-post",
+        authorUsername: "sgs_sa",
+        createdAt: "2026-04-15T13:00:58.000Z",
+        text: "Earlier SGS post"
+      },
+      {
+        id: "customer-inquiry",
+        authorUsername: "harshentrepre",
+        createdAt: "2026-04-17T01:26:25.000Z",
+        text: "Could you help me with startups?"
+      }
+    ]
+  });
+  assert.equal(result.candidate.id, "customer-inquiry");
+  assert.equal(result.discoveryMethod, "same_author_as_later_visible_reply_before_anchor");
+  assert.equal(result.relationshipStatus, "candidate_unverified");
+});
+
+test("does not select an earlier card without participant continuity or outside age window", () => {
+  const base = {
+    rootAuthorUsername: "sgs_sa",
+    rootCreatedAt: "2026-04-17T05:18:33.000Z",
+    externalReplyAuthors: ["harshentrepre"],
+    maxAgeHours: 72
+  };
+  assert.equal(selectConversationAncestor({
+    ...base,
+    candidates: [{
+      id: "unrelated",
+      authorUsername: "someone_else",
+      createdAt: "2026-04-17T01:26:25.000Z"
+    }]
+  }), null);
+  assert.equal(selectConversationAncestor({
+    ...base,
+    candidates: [{
+      id: "too-old",
+      authorUsername: "harshentrepre",
+      createdAt: "2026-04-10T01:26:25.000Z"
+    }]
+  }), null);
 });
