@@ -50,10 +50,13 @@ Invoke-RestMethod http://127.0.0.1:8010/health
 
 ## Process a sample
 
-Build the active 365-day materialisation first:
+Build the active 365-day collection and merged conversation dataset first:
 
 ```powershell
 npm run build:window
+npm run threads:queue
+npm run collect:threads -- --limit 3
+npm run build:conversation
 ```
 
 In another terminal, with the Python virtual environment activated:
@@ -94,7 +97,7 @@ $env:REASONING_MODEL = "YOUR_INSTRUCT_MODEL"
 python nlp-engine\scripts\generate_brief.py
 ```
 
-The script generates one brief per enabled domain, using aggregated clusters and a limited number of supporting evidence excerpts. It computes coverage itself and validates the response against the JSON Schema. It does not claim complete public-thread coverage from visible-end signals. Use a local endpoint to keep source excerpts on your machine; a hosted model receives only the selected evidence excerpts and aggregate data.
+The script generates one brief per enabled domain, using aggregated clusters and a limited number of supporting evidence excerpts. It also includes visible engagement snapshots and observed changes when available. It computes coverage itself and validates the response against the JSON Schema. It does not claim complete public-thread coverage from visible-end signals. Use a local endpoint to keep source excerpts on your machine; a hosted model receives only the selected evidence excerpts and aggregate data.
 
 Outputs:
 - `data/output/competitor-brief-tic.json`
