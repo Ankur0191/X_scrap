@@ -76,6 +76,7 @@ The service listens only on localhost by default. Keep raw collection and enrich
 ## Important limits
 
 - A detected location is only a text mention. It is not automatically the complainant's region.
+- Thread replies are included only when the visible conversation card exposes reply context; coverage remains explicitly partial until validated.
 - Candidate relations are not guaranteed to have the correct typed endpoints; downstream validation must check them.
 - Classification labels require evaluation on manually reviewed TIC and Aspire examples.
 - Complaints, strategic gaps, impact estimates and actionables require a separate evidence-grounded reasoning step and multi-post aggregation.
