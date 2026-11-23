@@ -36,3 +36,20 @@ test("rejects invalid timestamps", () => {
 test("rejects non-http URLs", () => {
   assert.throws(() => normalizePost({ ...valid, url: "javascript:alert(1)" }), /HTTP/);
 });
+
+
+test("preserves reply detection provenance when normalizing conversation records", () => {
+  const post = normalizePost({
+    ...valid,
+    isReply: true,
+    isThreadReply: true,
+    conversationRootId: "100",
+    parentPostId: "100",
+    replyDetectionMethod: "root_reply_count_order"
+  });
+  assert.equal(post.isReply, true);
+  assert.equal(post.isThreadReply, true);
+  assert.equal(post.conversationRootId, "100");
+  assert.equal(post.parentPostId, "100");
+  assert.equal(post.replyDetectionMethod, "root_reply_count_order");
+});
