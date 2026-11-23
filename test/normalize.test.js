@@ -53,3 +53,24 @@ test("preserves reply detection provenance when normalizing conversation records
   assert.equal(post.parentPostId, "100");
   assert.equal(post.replyDetectionMethod, "root_reply_count_order");
 });
+
+
+test("preserves candidate conversation ancestor metadata", () => {
+  const post = normalizePost({
+    ...valid,
+    isThreadAncestor: true,
+    ancestorForPostId: "200",
+    ancestorForPostIds: ["200"],
+    candidateParentPostIds: ["100"],
+    candidateReplyIds: ["300"],
+    ancestorRelationshipStatus: "candidate_unverified",
+    ancestorDiscoveryMethod: "same_author_as_later_visible_reply_before_anchor"
+  });
+  assert.equal(post.isThreadAncestor, true);
+  assert.equal(post.ancestorForPostId, "200");
+  assert.deepEqual(post.ancestorForPostIds, ["200"]);
+  assert.deepEqual(post.candidateParentPostIds, ["100"]);
+  assert.deepEqual(post.candidateReplyIds, ["300"]);
+  assert.equal(post.ancestorRelationshipStatus, "candidate_unverified");
+  assert.equal(post.ancestorDiscoveryMethod, "same_author_as_later_visible_reply_before_anchor");
+});
