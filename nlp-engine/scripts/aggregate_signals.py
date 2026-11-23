@@ -115,8 +115,8 @@ def main() -> int:
         created_at = source.get("createdAt") or source_meta.get("createdAt")
         url = source.get("url") or source_meta.get("sourceUrl")
         post_type = str(source.get("postType") or ("reply" if source.get("isThreadReply") else "post"))
-        visible_metrics = source.get("engagementHistory", {}).get("latestMetrics") or source.get("metrics") or {}
         engagement_history = source.get("engagementHistory") or {}
+        visible_metrics = engagement_history.get("latestMetrics") or source.get("metrics") or {}
 
         try:
             created_dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
