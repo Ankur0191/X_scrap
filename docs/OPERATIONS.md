@@ -36,6 +36,8 @@
 
 ## Data pipeline
 
+- Run `npm run audit:data` after each collection batch to review duplicates, date coverage, missing core fields, encoding anomalies, media-alt quality, author attribution and visible metric coverage.
+- The audit reads local JSONL and prints aggregate diagnostics; it does not upload post content.
 - Import accepts JSON arrays or JSONL.
 - Allowed competitor is checked against `trackedCompetitor`; legacy records use `authorUsername`.
 - Duplicate key is tracked competitor plus post ID.
