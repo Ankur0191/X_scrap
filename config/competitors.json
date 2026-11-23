@@ -36,7 +36,8 @@
         "travel",
         "loyalty",
         "customer-experience"
-      ]
+      ],
+      "domainId": "aspire_lifestyle"
     },
     {
       "username": "SGS_SA",
@@ -50,7 +51,8 @@
         "certification",
         "assurance",
         "sustainability"
-      ]
+      ],
+      "domainId": "tic"
     }
   ]
 }
