@@ -313,6 +313,7 @@ try {
   runSummary.completedAt = new Date().toISOString();
   runSummary.rootsChecked = rootsChecked;
   runSummary.newReplies = repliesAdded;
+  runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
   console.log("\nThread collection summary:");
   console.log(JSON.stringify(runSummary, null, 2));
