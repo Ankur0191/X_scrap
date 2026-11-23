@@ -36,7 +36,10 @@
     "backfill:mistras:6m": "node src/collector/run.js --account MISTRASGroup --backfill --window-days 184",
     "backfill:tuv-rheinland-press:6m": "node src/collector/run.js --account tuvcom_presse --backfill --window-days 184",
     "backfill:tuv-rheinland-products:6m": "node src/collector/run.js --account tuvcom_products --backfill --window-days 184",
-    "backfill:tuvsud-south-asia:6m": "node src/collector/run.js --account tuvsudSASIA --backfill --window-days 184"
+    "backfill:tuvsud-south-asia:6m": "node src/collector/run.js --account tuvsudSASIA --backfill --window-days 184",
+    "backfill:bv:6m": "node src/collector/run.js --account bureauveritas --backfill --window-days 184",
+    "backfill:intertek:6m": "node src/collector/run.js --account intertek --backfill --window-days 184",
+    "build:tic:6m": "node src/intelligence/build-window.js --domain tic --days 184"
   },
   "dependencies": {
     "playwright": "^1.56.0"
