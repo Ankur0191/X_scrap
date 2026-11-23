@@ -48,10 +48,10 @@ Per-account recovery commands are also available if a profile needs to be run by
 
 ```powershell
 npm run backfill:applus:6m
-npm run backfill:bv:year
+npm run backfill:bv:6m
 npm run backfill:cotecna:6m
 npm run backfill:dekra:6m
-npm run backfill:intertek:year
+npm run backfill:intertek:6m
 npm run backfill:mistras:6m
 npm run backfill:tuv-rheinland-press:6m
 npm run backfill:tuv-rheinland-products:6m
@@ -60,7 +60,13 @@ npm run backfill:tuvsud-south-asia:6m
 
 Kiwa is deliberately excluded while its X handle remains unverified. TÜV SÜD is included only through its documented South Asia account. MISTRAS is enabled as a profile/domain match but remains marked `profile_exists`, not `official_link_verified`.
 
-The original archive is retained; this six-month scan does not delete older rows or change the default 365-day analysis window. For a full 365-day backfill of all enabled competitors, use:
+The original archive is retained; this six-month scan does not delete older rows or change the default 365-day analysis window. To build a separate TIC-only six-month analysis file after collection, run:
+
+```powershell
+npm run build:tic:6m
+```
+
+This creates `data/output/posts-tic-184d.jsonl` and `data/output/window-manifest-tic-184d.json`. It excludes Aspire Lifestyle and all non-TIC records while leaving `posts-365d.jsonl` untouched. For a full 365-day backfill of all enabled competitors, use:
 
 ```powershell
 npm run backfill:year
