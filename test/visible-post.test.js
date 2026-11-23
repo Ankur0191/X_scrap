@@ -170,7 +170,10 @@ test("recognizes X probable-spam expansion labels without matching unrelated con
   assert.equal(isProbableSpamControlLabel("Show probable spam"), true);
   assert.equal(isProbableSpamControlLabel("Show 2 probable spam replies"), true);
   assert.equal(isProbableSpamControlLabel(" Show probable spams "), true);
+  assert.equal(isProbableSpamControlLabel("Replies hidden by X · Show probable spam"), true);
+  assert.equal(isProbableSpamControlLabel("Show probable spam replies (1)"), true);
   assert.equal(isProbableSpamControlLabel("Show more replies"), false);
   assert.equal(isProbableSpamControlLabel("Probable spam"), false);
   assert.equal(isProbableSpamControlLabel("Hide probable spam"), false);
+  assert.equal(isProbableSpamControlLabel("Probable spam replies"), false);
 });
