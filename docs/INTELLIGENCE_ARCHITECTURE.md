@@ -199,8 +199,8 @@ See:
 3. Validate hashtag, mention, quote and repost links.
 4. Run GLiNER2.5 Multi on a labelled sample from both sectors.
 5. Add LLM reasoning only after extraction schema and evidence links are stable.
-6. Cluster recurring issues and business events.
-7. Build evidence-backed competitor gap and actionability reports.
+6. Aggregate per-post GLiNER output into recurring complaint/event clusters with unique-author and monthly trend counts.
+7. Use the strategic analyst prompt to generate an evidence-backed brief, then human-review gap hypotheses and actionability reports.
 8. Connect the outputs to the respective Rivalmap Supabase projects.
 
 Do not start large historical backfills until the 365-day boundary and per-thread completeness states are validated on a small sample.
