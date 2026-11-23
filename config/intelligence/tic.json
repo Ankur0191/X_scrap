@@ -100,5 +100,17 @@
     "repeated_turnaround_complaints",
     "report_accuracy_complaints",
     "capacity_or_staffing_constraints"
+  ],
+  "journeyStages": [
+    "procurement_and_contracting",
+    "scope_definition_and_quotation",
+    "sample_collection_and_chain_of_custody",
+    "testing_or_inspection_execution",
+    "reporting_and_certificate_issuance",
+    "audit_and_nonconformity_resolution",
+    "regulatory_submission_and_market_access",
+    "customer_support_and_dispute",
+    "renewal_and_recertification",
+    "unknown"
   ]
 }
