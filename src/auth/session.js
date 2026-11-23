@@ -1,7 +1,9 @@
+import fs from "node:fs";
 import { chromium } from "playwright";
 import { profileDir } from "./profile.js";
 
 export async function launchPersistentSession({ headless = false } = {}) {
+  fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 });
   return chromium.launchPersistentContext(profileDir, {
     headless,
     viewport: { width: 1440, height: 960 },
@@ -21,13 +23,15 @@ export async function inspectSignedInState(page) {
   for (const selector of signedInSelectors) {
     const locator = page.locator(selector).first();
     try {
-      if (await locator.isVisible({ timeout: 1200 })) return "signed_in";
+      await locator.waitFor({ state: "visible", timeout: 900 });
+      return "signed_in";
     } catch { /* selector may not exist in this X layout */ }
   }
 
   const signInLink = page.getByRole("link", { name: /^(sign in|log in)$/i }).first();
   try {
-    if (await signInLink.isVisible({ timeout: 800 })) return "signed_out";
+    await signInLink.waitFor({ state: "visible", timeout: 600 });
+    return "signed_out";
   } catch { /* accessible label may change */ }
 
   return "unknown";
