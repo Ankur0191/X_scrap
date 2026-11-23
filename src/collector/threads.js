@@ -125,6 +125,7 @@ try {
     let stableScreens = 0;
     let newRepliesForRoot = 0;
     let unclassifiedForRoot = 0;
+    const visibleReplyIds = new Set();
     const knownByAuthor = new Map([[String(rootPost.rootAuthorUsername).toLowerCase(), rootId]]);
     let visibleMoreReplyControl = false;
 
@@ -152,6 +153,7 @@ try {
         }
 
         const key = rootId + ":" + post.id;
+        visibleReplyIds.add(post.id);
         if (seenReplies.has(key)) {
           knownByAuthor.set(post.authorUsername, post.id);
           continue;
@@ -216,7 +218,7 @@ try {
       else stableScreens = 0;
 
       if (stableScreens >= stableScreensRequired) {
-        status.status = "visible_end_reached";
+        status.status = unclassifiedForRoot === 0 ? "visible_end_reached" : "partial_unclassified_cards";
         status.completeness = unclassifiedForRoot === 0 ? "ui_visible_end_not_platform_completeness" : "partial_unclassified_cards";
         break;
       }
@@ -237,6 +239,7 @@ try {
       status.completeness = "partial";
     }
     status.replyCount = newRepliesForRoot;
+    status.visibleReplyCount = visibleReplyIds.size;
     status.unclassifiedConversationCards = unclassifiedForRoot;
     status.checkedAt = new Date().toISOString();
     status.windowStart = cutoff.toISOString();
