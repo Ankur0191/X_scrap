@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   buildThreadQueue,
   parseThreadPipelineOptions,
-  resolveThreadPipelineFiles
+  resolveThreadPipelineFiles,
+  resolveWindowBounds
 } from "../src/intelligence/thread-pipeline.js";
 
 test("parses TIC 184-day CLI options and retains the 365-day default", () => {
@@ -87,4 +88,32 @@ test("filters queue roots to the requested domain and deduplicates account/post 
   assert.deepEqual(queue.map((item) => item.domainId), ["tic", "tic"]);
   assert.deepEqual(queue.map((item) => item.windowDays), [184, 184]);
   assert.deepEqual(queue.map((item) => item.source), ["posts-tic-184d.jsonl", "posts-tic-184d.jsonl"]);
+});
+
+test("uses the recorded source window boundaries for matching domain and duration", () => {
+  const now = new Date("2026-11-25T12:00:00.000Z");
+  const sourceManifest = {
+    window: {
+      days: 184,
+      startInclusive: "2026-05-23T10:00:00.000Z",
+      endInclusive: "2026-11-23T10:00:00.000Z"
+    },
+    source: { domainFilter: "tic" }
+  };
+  const resolved = resolveWindowBounds(sourceManifest, { domainId: "tic", windowDays: 184, now });
+  assert.equal(resolved.startInclusive.toISOString(), "2026-05-23T10:00:00.000Z");
+  assert.equal(resolved.endInclusive.toISOString(), "2026-11-23T10:00:00.000Z");
+  assert.equal(resolved.source, "window_manifest");
+});
+
+test("falls back to a rolling window when manifest scope does not match", () => {
+  const now = new Date("2026-11-25T12:00:00.000Z");
+  const sourceManifest = {
+    window: { days: 184, startInclusive: "2026-05-23T10:00:00.000Z", endInclusive: "2026-11-23T10:00:00.000Z" },
+    source: { domainFilter: "aspire_lifestyle" }
+  };
+  const resolved = resolveWindowBounds(sourceManifest, { domainId: "tic", windowDays: 184, now });
+  assert.equal(resolved.startInclusive.toISOString(), new Date(now.getTime() - 184 * 86400000).toISOString());
+  assert.equal(resolved.endInclusive.toISOString(), now.toISOString());
+  assert.equal(resolved.source, "rolling_window_fallback");
 });

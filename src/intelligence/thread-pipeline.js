@@ -48,6 +48,31 @@ export function resolveThreadPipelineFiles({ domainId = null, windowDays = 365 }
   };
 }
 
+export function resolveWindowBounds(sourceManifest, {
+  domainId = null,
+  windowDays = 365,
+  now = new Date()
+} = {}) {
+  const referenceTime = now instanceof Date ? now : new Date(now);
+  const fallbackStart = new Date(referenceTime.getTime() - Number(windowDays) * 86400000);
+  if (!sourceManifest) {
+    return { startInclusive: fallbackStart, endInclusive: referenceTime, source: "rolling_window_fallback" };
+  }
+
+  const manifestDomain = String(sourceManifest.source?.domainFilter || "").toLowerCase() || null;
+  const manifestStart = new Date(sourceManifest.window?.startInclusive);
+  const manifestEnd = new Date(sourceManifest.window?.endInclusive);
+  const matches = Number(sourceManifest.window?.days) === Number(windowDays) &&
+    manifestDomain === domainId &&
+    !Number.isNaN(manifestStart.getTime()) &&
+    !Number.isNaN(manifestEnd.getTime()) &&
+    manifestStart <= manifestEnd;
+
+  return matches
+    ? { startInclusive: manifestStart, endInclusive: manifestEnd, source: "window_manifest" }
+    : { startInclusive: fallbackStart, endInclusive: referenceTime, source: "rolling_window_fallback" };
+}
+
 export function buildThreadQueue(posts, {
   domainId = null,
   windowDays = 365,

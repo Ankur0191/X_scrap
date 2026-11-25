@@ -1,4 +1,4 @@
-import { parseThreadPipelineOptions, resolveThreadPipelineFiles } from "./thread-pipeline.js";
+import { parseThreadPipelineOptions, resolveThreadPipelineFiles, resolveWindowBounds } from "./thread-pipeline.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,29 +26,17 @@ const domainByCompetitor = new Map(config.competitors.map((item) => [
   String(item.domainId || "").toLowerCase() || null
 ]));
 
-let cutoff = new Date(generatedAt.getTime() - windowDays * 86400000);
-let windowEnd = generatedAt;
+let sourceWindowManifest = null;
 if (fs.existsSync(windowManifestPath)) {
   try {
-    const sourceManifest = JSON.parse(fs.readFileSync(windowManifestPath, "utf8"));
-    const manifestDomain = String(sourceManifest.source?.domainFilter || "").toLowerCase() || null;
-    const manifestStart = new Date(sourceManifest.window?.startInclusive);
-    const manifestEnd = new Date(sourceManifest.window?.endInclusive);
-    const matchesDomain = manifestDomain === domainId;
-    if (
-      Number(sourceManifest.window?.days) === windowDays &&
-      matchesDomain &&
-      !Number.isNaN(manifestStart.getTime()) &&
-      !Number.isNaN(manifestEnd.getTime()) &&
-      manifestStart <= manifestEnd
-    ) {
-      cutoff = manifestStart;
-      windowEnd = manifestEnd;
-    }
+    sourceWindowManifest = JSON.parse(fs.readFileSync(windowManifestPath, "utf8"));
   } catch (error) {
     console.warn("Could not read source window manifest; using a rolling cutoff: " + error.message);
   }
 }
+const windowBounds = resolveWindowBounds(sourceWindowManifest, { domainId, windowDays, now: generatedAt });
+const cutoff = windowBounds.startInclusive;
+const windowEnd = windowBounds.endInclusive;
 const isInWindow = (date) => !Number.isNaN(date.getTime()) && date >= cutoff && date <= windowEnd;
 
 if (!fs.existsSync(postsPath)) {
@@ -295,7 +283,8 @@ const manifest = {
     startInclusive: cutoff.toISOString(),
     endInclusive: windowEnd.toISOString(),
     timezone: "UTC",
-    domainId
+    domainId,
+    boundsSource: windowBounds.source
   },
   output: path.relative(root, outputPath).split(path.sep).join("/"),
   sourcePosts: path.relative(root, postsPath).split(path.sep).join("/"),

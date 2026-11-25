@@ -1,4 +1,4 @@
-import { parseThreadPipelineOptions, resolveThreadPipelineFiles } from "../intelligence/thread-pipeline.js";
+import { parseThreadPipelineOptions, resolveThreadPipelineFiles, resolveWindowBounds } from "../intelligence/thread-pipeline.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,7 @@ const progressPath = path.join(outputDir, files.progress);
 const activePostsPath = path.join(outputDir, files.posts);
 const ancestorsPath = path.join(outputDir, files.ancestors);
 const runsPath = path.join(outputDir, files.runs);
+const windowManifestPath = path.join(outputDir, files.windowManifest);
 if (!fs.existsSync(queuePath)) {
   console.error("Thread queue missing. Run npm run threads:queue first.");
   process.exit(2);
@@ -135,10 +136,21 @@ if (fs.existsSync(replyPath)) {
 }
 
 const now = new Date();
-const cutoff = new Date(now.getTime() - windowDays * 86400000);
+let sourceWindowManifest = null;
+if (fs.existsSync(windowManifestPath)) {
+  try {
+    sourceWindowManifest = JSON.parse(fs.readFileSync(windowManifestPath, "utf8"));
+  } catch (error) {
+    console.warn("Could not read source window manifest; using a rolling cutoff: " + error.message);
+  }
+}
+const windowBounds = resolveWindowBounds(sourceWindowManifest, { domainId: domainFilter, windowDays, now });
+const cutoff = windowBounds.startInclusive;
+const windowEnd = windowBounds.endInclusive;
+const isInWindow = (date) => !Number.isNaN(date.getTime()) && date >= cutoff && date <= windowEnd;
 const eligibleCandidates = queue.filter((item) => {
   const published = new Date(item.createdAt);
-  if (Number.isNaN(published.getTime()) || published < cutoff || published > now) return false;
+  if (!isInWindow(published)) return false;
   const previous = progressByRoot.get(item.rootPostId);
   // An explicit diagnostic target should be rechecked even if its previous UI scan reached the visible end.
   if (postIdFilter) return true;
@@ -260,6 +272,9 @@ const runSummary = {
   mode: headless ? "headless" : "headed",
   domainId: domainFilter,
   rollingWindowDays: windowDays,
+  windowStart: cutoff.toISOString(),
+  windowEnd: windowEnd.toISOString(),
+  windowBoundsSource: windowBounds.source,
   rootsQueued: queue.length,
   rootsSelected: eligible.length,
   diagnosticAnchorOutsideRootQueue,
@@ -406,7 +421,7 @@ try {
           rootCreatedAt = post.createdAt;
           continue;
         }
-        if (new Date(post.createdAt) < cutoff) continue;
+        if (!isInWindow(new Date(post.createdAt))) continue;
 
         // Cards remain mounted across scroll screens. Once a post has been
         // classified as a reply in this root, do not reclassify it as unrelated.
@@ -649,6 +664,7 @@ try {
     status.unclassifiedConversationCards = unclassifiedForRoot;
     status.checkedAt = new Date().toISOString();
     status.windowStart = cutoff.toISOString();
+    status.windowEnd = windowEnd.toISOString();
     status.rootPostUrl = rootPost.url;
     fs.appendFileSync(progressPath, JSON.stringify(status) + "\n", "utf8");
     progressByRoot.set(rootId, status);
