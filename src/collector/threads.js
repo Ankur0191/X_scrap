@@ -1,3 +1,4 @@
+import { parseThreadPipelineOptions, resolveThreadPipelineFiles } from "../intelligence/thread-pipeline.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,17 +19,24 @@ const postIdIndex = args.indexOf("--post-id");
 const postIdFilter = postIdIndex >= 0 ? String(args[postIdIndex + 1] || "").trim() : null;
 const headless = process.env.X_HEADLESS === "1";
 const settings = config.collection || {};
+const { domainId: domainFilter, windowDays } = parseThreadPipelineOptions(
+  args,
+  Number(settings.windowDays || 365)
+);
+const files = resolveThreadPipelineFiles({ domainId: domainFilter, windowDays });
+const outputDir = path.join(root, "data/output");
 const maxScrolls = Number(settings.maxThreadScrolls || 30);
 const delayMs = Number(settings.threadScrollDelayMs || 2500);
 const stableScreensRequired = Number(settings.threadStableScreens || 3);
 const refreshDays = Number(settings.threadRefreshDays || 7);
 
-const queuePath = path.join(root, "data/output/thread-queue-365d.jsonl");
-const replyPath = path.join(root, "data/output/thread-replies.jsonl");
-const snapshotsPath = path.join(root, "data/output/engagement-snapshots.jsonl");
-const progressPath = path.join(root, "data/output/thread-progress.jsonl");
-const activePostsPath = path.join(root, "data/output/posts-" + Number(settings.windowDays || 365) + "d.jsonl");
-const ancestorsPath = path.join(root, "data/output/thread-ancestors.jsonl");
+const queuePath = path.join(outputDir, files.queue);
+const replyPath = path.join(outputDir, files.replies);
+const snapshotsPath = path.join(outputDir, files.snapshots);
+const progressPath = path.join(outputDir, files.progress);
+const activePostsPath = path.join(outputDir, files.posts);
+const ancestorsPath = path.join(outputDir, files.ancestors);
+const runsPath = path.join(outputDir, files.runs);
 if (!fs.existsSync(queuePath)) {
   console.error("Thread queue missing. Run npm run threads:queue first.");
   process.exit(2);
@@ -38,6 +46,7 @@ if (headless && !settings.allowHeadless) {
 }
 
 let queue = fs.readFileSync(queuePath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+  .filter((item) => !domainFilter || item.domainId === domainFilter)
   .filter((item) => !accountFilter || item.trackedCompetitor === accountFilter)
   .filter((item) => !postIdFilter || String(item.rootPostId) === postIdFilter);
 
@@ -66,6 +75,8 @@ if (postIdFilter && queue.length === 0 && fs.existsSync(activePostsPath)) {
           url: post.url,
           text: post.text || "",
           diagnosticOnly: true,
+          domainId: domainFilter,
+          windowDays,
           source: "explicit_with_replies_diagnostic_anchor"
         });
         diagnosticAnchorOutsideRootQueue = true;
@@ -124,7 +135,7 @@ if (fs.existsSync(replyPath)) {
 }
 
 const now = new Date();
-const cutoff = new Date(now.getTime() - Number(settings.windowDays || 365) * 86400000);
+const cutoff = new Date(now.getTime() - windowDays * 86400000);
 const eligibleCandidates = queue.filter((item) => {
   const published = new Date(item.createdAt);
   if (Number.isNaN(published.getTime()) || published < cutoff || published > now) return false;
@@ -247,7 +258,8 @@ let ancestorsAdded = 0;
 const runSummary = {
   startedAt: now.toISOString(),
   mode: headless ? "headless" : "headed",
-  rollingWindowDays: Number(settings.windowDays || 365),
+  domainId: domainFilter,
+  rollingWindowDays: windowDays,
   rootsQueued: queue.length,
   rootsSelected: eligible.length,
   diagnosticAnchorOutsideRootQueue,
@@ -285,6 +297,8 @@ try {
     const status = {
       rootPostId: rootId,
       trackedCompetitor: tracked,
+      domainId: domainFilter,
+      windowDays,
       status: "partial",
       completeness: "not_verified",
       newRepliesCaptured: 0,
@@ -647,7 +661,7 @@ try {
   runSummary.newReplies = repliesAdded;
   runSummary.ancestorsAdded = ancestorsAdded;
   runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
-  fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
+  fs.appendFileSync(runsPath, JSON.stringify(runSummary) + "\n", "utf8");
   console.log("\nThread collection summary:");
   console.log(JSON.stringify(runSummary, null, 2));
 } catch (error) {
@@ -657,7 +671,7 @@ try {
   runSummary.ancestorsAdded = ancestorsAdded;
   runSummary.engagementSnapshotsAdded = engagementSnapshotsAdded;
   runSummary.error = error.message;
-  fs.appendFileSync(path.join(root, "data/output", "thread-runs.jsonl"), JSON.stringify(runSummary) + "\n", "utf8");
+  fs.appendFileSync(runsPath, JSON.stringify(runSummary) + "\n", "utf8");
   console.error("Thread collection stopped: " + error.message);
   process.exitCode = 1;
 } finally {

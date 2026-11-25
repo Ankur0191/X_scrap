@@ -1,21 +1,55 @@
+import { parseThreadPipelineOptions, resolveThreadPipelineFiles } from "./thread-pipeline.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const args = process.argv.slice(2);
-const daysIndex = args.indexOf("--days");
-const daysArg = daysIndex >= 0 ? Number(args[daysIndex + 1]) : null;
 const config = JSON.parse(fs.readFileSync(path.join(root, "config/competitors.json"), "utf8"));
-const windowDays = Number.isFinite(daysArg) && daysArg > 0 ? Math.min(daysArg, 3650) : Number(config.collection?.windowDays || 365);
+const { domainId, windowDays } = parseThreadPipelineOptions(
+  args,
+  Number(config.collection?.windowDays || 365)
+);
+const files = resolveThreadPipelineFiles({ domainId, windowDays });
+const outputDir = path.join(root, "data/output");
 const generatedAt = new Date();
-const cutoff = new Date(generatedAt.getTime() - windowDays * 86400000);
-const postsPath = path.join(root, "data/output", "posts-" + windowDays + "d.jsonl");
-const repliesPath = path.join(root, "data/output/thread-replies.jsonl");
-const ancestorsPath = path.join(root, "data/output/thread-ancestors.jsonl");
-const engagementPath = path.join(root, "data/output/engagement-snapshots.jsonl");
-const outputPath = path.join(root, "data/output", "conversation-" + windowDays + "d.jsonl");
-const manifestPath = path.join(root, "data/output/conversation-manifest.json");
+const postsPath = path.join(outputDir, files.posts);
+const repliesPath = path.join(outputDir, files.replies);
+const ancestorsPath = path.join(outputDir, files.ancestors);
+const engagementPath = path.join(outputDir, files.snapshots);
+const outputPath = path.join(outputDir, files.conversation);
+const manifestPath = path.join(outputDir, files.conversationManifest);
+const progressPath = path.join(outputDir, files.progress);
+const windowManifestPath = path.join(outputDir, files.windowManifest);
+const domainByCompetitor = new Map(config.competitors.map((item) => [
+  String(item.username).replace(/^@/, "").toLowerCase(),
+  String(item.domainId || "").toLowerCase() || null
+]));
+
+let cutoff = new Date(generatedAt.getTime() - windowDays * 86400000);
+let windowEnd = generatedAt;
+if (fs.existsSync(windowManifestPath)) {
+  try {
+    const sourceManifest = JSON.parse(fs.readFileSync(windowManifestPath, "utf8"));
+    const manifestDomain = String(sourceManifest.source?.domainFilter || "").toLowerCase() || null;
+    const manifestStart = new Date(sourceManifest.window?.startInclusive);
+    const manifestEnd = new Date(sourceManifest.window?.endInclusive);
+    const matchesDomain = manifestDomain === domainId;
+    if (
+      Number(sourceManifest.window?.days) === windowDays &&
+      matchesDomain &&
+      !Number.isNaN(manifestStart.getTime()) &&
+      !Number.isNaN(manifestEnd.getTime()) &&
+      manifestStart <= manifestEnd
+    ) {
+      cutoff = manifestStart;
+      windowEnd = manifestEnd;
+    }
+  } catch (error) {
+    console.warn("Could not read source window manifest; using a rolling cutoff: " + error.message);
+  }
+}
+const isInWindow = (date) => !Number.isNaN(date.getTime()) && date >= cutoff && date <= windowEnd;
 
 if (!fs.existsSync(postsPath)) {
   console.error("Active post file not found. Run npm run build:window first.");
@@ -36,10 +70,13 @@ function readJsonl(filePath) {
 const records = new Map();
 for (const post of readJsonl(postsPath)) {
   const date = new Date(post.createdAt);
-  if (Number.isNaN(date.getTime()) || date < cutoff || date > generatedAt) continue;
-  const key = String(post.trackedCompetitor).toLowerCase() + ":" + String(post.id);
+  if (!isInWindow(date)) continue;
+  const tracked = String(post.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
+  if (!tracked || (domainId && domainByCompetitor.get(tracked) !== domainId)) continue;
+  const key = tracked + ":" + String(post.id);
   records.set(key, {
     ...post,
+    trackedCompetitor: tracked,
     isThreadReply: false,
     conversationRootIds: post.conversationRootId ? [String(post.conversationRootId)] : []
   });
@@ -50,9 +87,10 @@ let mergedAncestorRows = 0;
 const candidateAncestorsByCompetitor = {};
 for (const ancestor of readJsonl(ancestorsPath)) {
   const date = new Date(ancestor.createdAt);
-  if (Number.isNaN(date.getTime()) || date < cutoff || date > generatedAt) continue;
+  if (!isInWindow(date)) continue;
 
-  const tracked = String(ancestor.trackedCompetitor || "").toLowerCase();
+  const tracked = String(ancestor.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
+  if (domainId && domainByCompetitor.get(tracked) !== domainId) continue;
   const ancestorId = String(ancestor.id || "");
   const childRootId = String(ancestor.ancestorForPostId || "");
   if (!tracked || !ancestorId || !childRootId || ancestorId === childRootId) continue;
@@ -130,8 +168,9 @@ let mergedExternalPublicReplies = 0;
 let mergedCompetitorAuthoredReplies = 0;
 for (const reply of readJsonl(repliesPath)) {
   const date = new Date(reply.createdAt);
-  if (Number.isNaN(date.getTime()) || date < cutoff || date > generatedAt) continue;
-  const tracked = String(reply.trackedCompetitor || "").toLowerCase();
+  if (!isInWindow(date)) continue;
+  const tracked = String(reply.trackedCompetitor || "").replace(/^@/, "").toLowerCase();
+  if (domainId && domainByCompetitor.get(tracked) !== domainId) continue;
   const key = tracked + ":" + String(reply.id);
   const rootId = reply.conversationRootId ? String(reply.conversationRootId) : null;
   const existing = records.get(key);
@@ -225,8 +264,7 @@ for (const item of merged) {
   }
 }
 
-const progressPath = path.join(root, "data/output/thread-progress.jsonl");
-const progressRows = readJsonl(progressPath);
+const progressRows = readJsonl(progressPath).filter((item) => !domainId || item.domainId === domainId);
 const latestProgressByRoot = new Map();
 for (const item of progressRows) {
   const rootId = String(item.rootPostId || "");
@@ -255,10 +293,12 @@ const manifest = {
   window: {
     days: windowDays,
     startInclusive: cutoff.toISOString(),
-    endInclusive: generatedAt.toISOString(),
-    timezone: "UTC"
+    endInclusive: windowEnd.toISOString(),
+    timezone: "UTC",
+    domainId
   },
-  output: "data/output/conversation-" + windowDays + "d.jsonl",
+  output: path.relative(root, outputPath).split(path.sep).join("/"),
+  sourcePosts: path.relative(root, postsPath).split(path.sep).join("/"),
   counts: {
     totalUniqueCompetitorRecords: merged.length,
     recordsWithEngagementHistory: merged.filter((item) => item.engagementHistory).length,

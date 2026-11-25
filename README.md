@@ -137,6 +137,31 @@ A cycle refreshes the latest competitor timelines, rebuilds the rolling 365-day 
 
 The conversation collector expands visible X `Show probable spam` controls before extracting cards, then captures reply cards that the visible interface identifies as replies and links them to the root post. The number of probable-spam sections expanded is recorded per root and in the thread-run summary. It records partial/visible-end states and unclassified cards. It can also discover an earlier external participant post when that author appears again in a later captured reply under the selected anchor; these ancestor edges are explicitly unverified until inspected. **A visible end is not proof that X exposed every reply**, so never report complete public-reply coverage without a separate validation step. The queue can be resumed; previously completed roots are revisited after the configured refresh interval.
 
+
+
+### TIC-only six-month conversation workflow
+
+The six-month TIC conversation pipeline is explicitly scoped to the already-built `posts-tic-184d.jsonl` dataset. It does not use the default 365-day queue or shared 365-day reply/progress/ancestor files. Run the stages in this order:
+
+```powershell
+npm run build:thread-queue:tic:6m
+npm run collect:threads:tic:6m -- --limit 10
+npm run build:conversations:tic:6m
+```
+
+Repeat the bounded collection command to continue through the queue. Omit `--limit 10` when you intentionally want to process every eligible root in the queue in one headed-browser run. The collector uses the existing signed-in browser session and retains the current safety and visible-UI completeness warnings.
+
+TIC six-month outputs are isolated:
+- `thread-queue-tic-184d.jsonl`
+- `thread-replies-tic-184d.jsonl`
+- `thread-progress-tic-184d.jsonl`
+- `thread-ancestors-tic-184d.jsonl`
+- `thread-runs-tic-184d.jsonl`
+- `conversations-tic-184d.jsonl`
+- `conversation-manifest-tic-184d.json`
+
+Queue entries carry `domainId: "tic"` and `windowDays: 184`. The conversation builder uses the matching `window-manifest-tic-184d.json` bounds where available, so posts and replies are filtered against the same source window. The shared `engagement-snapshots.jsonl` remains a raw observation history and is joined only by tracked account plus post ID. The existing 365-day commands and file names remain unchanged.
+
 Conversation outputs:
 - `thread-queue-365d.jsonl`
 - `thread-replies.jsonl`

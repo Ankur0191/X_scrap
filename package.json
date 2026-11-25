@@ -39,7 +39,10 @@
     "backfill:tuvsud-south-asia:6m": "node src/collector/run.js --account tuvsudSASIA --backfill --window-days 184",
     "backfill:bv:6m": "node src/collector/run.js --account bureauveritas --backfill --window-days 184",
     "backfill:intertek:6m": "node src/collector/run.js --account intertek --backfill --window-days 184",
-    "build:tic:6m": "node src/intelligence/build-window.js --domain tic --days 184"
+    "build:tic:6m": "node src/intelligence/build-window.js --domain tic --days 184",
+    "build:thread-queue:tic:6m": "node src/collector/build-thread-queue.js --domain tic --window-days 184",
+    "collect:threads:tic:6m": "node src/collector/threads.js --domain tic --window-days 184",
+    "build:conversations:tic:6m": "node src/intelligence/build-conversation.js --domain tic --window-days 184"
   },
   "dependencies": {
     "playwright": "^1.56.0"
