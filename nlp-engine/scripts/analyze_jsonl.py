@@ -42,11 +42,13 @@ def main() -> int:
             for line in handle:
                 try:
                     old = json.loads(line)
-                    source = old.get("sourcePost", {})
-                    processed.add(
-                        str(source.get("trackedCompetitor", "")).lower() + ":" +
-                        str(source.get("postId", ""))
-                    )
+                    # Current output stores the original row in sourceRecord;
+                    # sourcePost is accepted for compatibility with older outputs.
+                    source = old.get("sourceRecord") or old.get("sourcePost") or {}
+                    tracked = str(source.get("trackedCompetitor", "")).replace("@", "").lower()
+                    source_post_id = source.get("id") or source.get("postId")
+                    if tracked and source_post_id:
+                        processed.add(tracked + ":" + str(source_post_id))
                 except json.JSONDecodeError:
                     continue
 
