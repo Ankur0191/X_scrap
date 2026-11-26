@@ -197,6 +197,9 @@ try {
       let oldestInWindow = null;
       let oldestInWindowId = null;
       let completion = "safety_limit_reached";
+      let previousScreenFingerprint = null;
+      let unchangedScreenCount = 0;
+      const unchangedScreensRequired = Math.max(2, Number(settings.noScrollProgressScreensRequired || 3));
 
       for (let scroll = 0; scroll <= maxScrolls; scroll += 1) {
         const articles = page.locator('article[data-testid="tweet"]');
@@ -206,11 +209,13 @@ try {
         let oldCards = 0;
         let addedThisScreen = 0;
         let knownThisScreen = 0;
+        const screenPostIds = [];
 
         for (let index = 0; index < count; index += 1) {
           const post = await extractVisiblePost(articles.nth(index), handle, timeline);
           if (!post) continue;
           recognizedCards += 1;
+          screenPostIds.push(String(post.id));
           const postDate = new Date(post.createdAt);
           if (resumeCheckpoint && !resumeCheckpointReached && post.id === String(resumeCheckpoint.postId)) {
             resumeCheckpointReached = true;
@@ -287,6 +292,14 @@ try {
           oldCards + " older than cutoff."
         );
 
+        // X can occasionally leave the same small set of cards mounted after
+        // scrolling. Stop as partial rather than repeating the same viewport
+        // up to the 1,200-scroll safety limit.
+        const fingerprint = [...new Set(screenPostIds)].sort().join("|");
+        if (fingerprint && fingerprint === previousScreenFingerprint) unchangedScreenCount += 1;
+        else unchangedScreenCount = 0;
+        previousScreenFingerprint = fingerprint || null;
+
         if (backfillWindow) {
           if (resumeCheckpointReached) {
             if (recognizedCards > 0 && inWindowCards === 0 && oldCards > 0) oldBoundaryScreens += 1;
@@ -311,6 +324,15 @@ try {
             console.log("Reached previously collected recent posts across " + noNewScreens + " successive screens.");
             break;
           }
+        }
+
+        if (unchangedScreenCount >= unchangedScreensRequired) {
+          completion = "stalled_no_scroll_progress";
+          console.warn(
+            "Stopping this timeline as partial: the same visible post cards repeated across " +
+            (unchangedScreenCount + 1) + " successive screens."
+          );
+          break;
         }
 
         if (backfillWindow && resumeCheckpointReached && oldestInWindowId && scroll > 0 && scroll % 25 === 0) {
