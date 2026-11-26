@@ -64,6 +64,16 @@ def has_thread_context(source: dict[str, Any], source_meta: dict[str, Any]) -> b
     return any(bool(source.get(field)) or bool(source_meta.get(field)) for field in fields)
 
 
+def is_external_customer_voice_signal(signal_type: str, source_role: str) -> bool:
+    customer_voice_signals = {
+        "customer_praise",
+        "customer_request",
+        "customer_question",
+        "customer_complaint"
+    }
+    return signal_type not in customer_voice_signals or source_role == "external_public_account"
+
+
 def is_candidate_complaint(
     author: str,
     competitor: str,
@@ -137,6 +147,7 @@ def main() -> int:
     complaint_rows_excluded_non_thread = 0
     complaint_rows_excluded_nonnegative = 0
     complaint_rows_excluded_unclassified = 0
+    official_customer_voice_signals_excluded = 0
 
     for enriched in records:
         source = enriched.get("sourceRecord") or {}
@@ -278,6 +289,9 @@ def main() -> int:
 
         for signal_type in signal_types:
             if signal_type in {"customer_complaint", "other"}:
+                continue
+            if not is_external_customer_voice_signal(signal_type, source_role):
+                official_customer_voice_signals_excluded += 1
                 continue
             event_signals[(competitor, normalised_key(signal_type))].append({
                 **evidence,
@@ -425,6 +439,7 @@ def main() -> int:
             "complaintRowsExcludedNonThread": complaint_rows_excluded_non_thread,
             "complaintRowsExcludedNonnegative": complaint_rows_excluded_nonnegative,
             "complaintRowsExcludedUnclassified": complaint_rows_excluded_unclassified,
+            "officialCustomerVoiceSignalsExcluded": official_customer_voice_signals_excluded,
             "complaintClusters": len(cluster_output),
             "eventClusters": len(event_output),
             "candidateOpportunityHypotheses": len(candidate_gaps)
@@ -531,6 +546,7 @@ def main() -> int:
         "complaintRowsExcludedOfficial": complaint_rows_excluded_official,
         "complaintRowsExcludedNonThread": complaint_rows_excluded_non_thread,
         "complaintRowsExcludedNonnegative": complaint_rows_excluded_nonnegative,
+        "officialCustomerVoiceSignalsExcluded": official_customer_voice_signals_excluded,
         "complaintClusters": len(cluster_output),
         "eventClusters": len(event_output),
         "candidateOpportunityHypotheses": len(candidate_gaps),
