@@ -297,6 +297,11 @@ def main() -> int:
             }
             for candidate in domain_candidates:
                 domain_evidence_ids.update(str(value) for value in (candidate.get("basis", {}).get("evidenceIds") or []))
+            domain_evidence_ids.update(
+                str(item.get("sourcePostId"))
+                for item in domain_external_feedback
+                if item.get("sourcePostId")
+            )
             graph_nodes = [
                 node for node in graph_document.get("nodes", [])
                 if domain_evidence_ids.intersection(str(value) for value in (node.get("evidenceIds") or []))
