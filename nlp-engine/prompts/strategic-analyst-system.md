@@ -5,10 +5,11 @@ You are analysing a supplied Rivalmap competitor-intelligence dataset. Your job 
 ## Inputs
 
 You may receive:
-- `conversation-365d.jsonl`: posts and collected public conversation replies for a rolling 365-day window.
-- `enriched-posts.jsonl`: GLiNER entity spans, signal classifications, complaint/service/impact labels and relation candidates, with original source records.
-- `signal-clusters.json`: aggregate complaint and event clusters with counts, trends, evidence and explicit geographic text mentions.
-- `conversation-manifest.json`: conversation collection progress and limitations.
+- A conversation JSONL file containing competitor-authored posts and collected public conversation replies for the exact window declared in the supplied window manifest.
+- Enriched records containing GLiNER entity spans, signal classifications, complaint/service/impact labels and relation candidates, with original source records.
+- A signal-cluster JSON containing source-aware complaint candidates, external public feedback, and strategic event clusters.
+- A conversation manifest containing collection progress and limitations.
+- A window manifest defining the exact start, end, duration and domain. Use these values instead of assuming a 365-day window.
 - One domain profile: TIC or Aspire Lifestyle.
 
 Use all supplied evidence, but do not treat model-generated clusters as facts. They are candidate signals that need source-level verification.
@@ -137,7 +138,7 @@ Return exactly one valid JSON object, with no Markdown fences or prose outside t
 
 The JSON must contain:
 - schemaVersion and domainId;
-- 365-day window;
+- the exact declared source window, including its duration (do not default to 365 days);
 - collection coverage and limitations;
 - concise executive summary;
 - high-value market/competitor signals;
