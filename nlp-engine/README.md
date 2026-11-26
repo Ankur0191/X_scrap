@@ -118,6 +118,29 @@ Outputs:
 
 The service listens only on localhost by default. Keep raw collection and enriched output local until retention, privacy and X authorisation terms are reviewed.
 
+## TIC six-month pipeline
+
+Use explicit TIC six-month paths so the analysis does not read or overwrite the default 365-day and Aspire outputs. After all 261 source records have been enriched:
+
+```powershell
+python nlp-engine\scripts\build_entity_graph.py --input data/output/enriched-posts-tic-184d.jsonl --output data/output/entity-graph-tic-184d.json
+
+python nlp-engine\scripts\aggregate_signals.py --input data/output/enriched-posts-tic-184d.jsonl --output data/output/signal-clusters-tic-184d.json --brief data/output/preliminary-competitor-brief-tic-184d.json
+```
+
+Complaint clusters are source-aware by default. A complaint candidate must be an external account's thread-linked record, have negative or mixed sentiment, and have a specific complaint label. Competitor-published announcements remain available for strategic event analysis, but are not treated as customer complaints. External accounts are still not automatically customers; inspect every candidate against its original thread.
+
+After configuring an approved OpenAI-compatible reasoning endpoint, generate only the TIC brief with the exact six-month manifests and graph:
+
+```powershell
+$env:REASONING_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:REASONING_MODEL = "YOUR_INSTRUCT_MODEL"
+
+python nlp-engine\scripts\generate_brief.py --domain tic --clusters data/output/signal-clusters-tic-184d.json --conversation data/output/conversations-tic-184d.jsonl --window-manifest data/output/window-manifest-tic-184d.json --conversation-manifest data/output/conversation-manifest-tic-184d.json --graph data/output/entity-graph-tic-184d.json --thread-progress data/output/thread-progress-tic-184d.jsonl --output-dir data/output/tic-184d-brief
+```
+
+The generated brief is written to `data/output/tic-184d-brief/competitor-brief-tic.json`. Its window is taken from `window-manifest-tic-184d.json`; the schema accepts the declared duration rather than forcing 365 days.
+
 ## Important limits
 
 - A detected location is only a text mention. It is not automatically the complainant's region.
