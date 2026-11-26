@@ -129,6 +129,9 @@ def main() -> int:
     parser.add_argument("--conversation", default="data/output/conversation-365d.jsonl")
     parser.add_argument("--window-manifest", default="data/output/window-manifest.json")
     parser.add_argument("--conversation-manifest", default="data/output/conversation-manifest.json")
+    parser.add_argument("--graph", default="data/output/entity-graph.json")
+    parser.add_argument("--thread-progress", default="data/output/thread-progress.jsonl")
+    parser.add_argument("--max-external-feedback", type=int, default=30)
     parser.add_argument("--system-prompt", default="nlp-engine/prompts/strategic-analyst-system.md")
     parser.add_argument("--max-clusters", type=int, default=15)
     parser.add_argument("--max-events", type=int, default=15)
@@ -155,12 +158,17 @@ def main() -> int:
     conversation_path = resolve(args.conversation)
     window_manifest_path = resolve(args.window_manifest)
     conversation_manifest_path = resolve(args.conversation_manifest)
-    graph_path = resolve("data/output/entity-graph.json")
+    graph_path = resolve(args.graph)
+    thread_progress_path = resolve(args.thread_progress)
     prompt_path = resolve(args.system_prompt)
     schema_path = repo_root / "schemas" / "intelligence-brief.schema.json"
     config_path = repo_root / "config" / "competitors.json"
 
-    required_paths = [cluster_path, prompt_path, schema_path, config_path]
+    required_paths = [
+        cluster_path, conversation_path, window_manifest_path,
+        conversation_manifest_path, graph_path, thread_progress_path,
+        prompt_path, schema_path, config_path
+    ]
     missing = [str(path) for path in required_paths if not path.exists()]
     if missing:
         print(json.dumps({"error": "missing_required_input", "paths": missing}, indent=2))
@@ -190,7 +198,8 @@ def main() -> int:
     events = cluster_document.get("events", [])
     candidate_hypotheses = cluster_document.get("candidateOpportunityHypotheses", [])
     conversation_rows = read_jsonl(conversation_path)
-    progress_rows = read_jsonl(resolve("data/output/thread-progress.jsonl"))
+    progress_rows = read_jsonl(thread_progress_path)
+    external_public_feedback = cluster_document.get("externalPublicFeedback", [])
 
     output_dir = resolve(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -250,6 +259,19 @@ def main() -> int:
                     {**row, "quote": str(row.get("quote") or "")[:800]}
                     for row in selected_evidence
                 ]
+
+            domain_external_feedback = [
+                item for item in external_public_feedback
+                if str(item.get("competitor", "")).lower() in domain_handles
+            ]
+            domain_external_feedback.sort(
+                key=lambda item: (
+                    0 if str(item.get("sentiment", "")).lower() in {"negative", "mixed"} else 1,
+                    str(item.get("createdAt") or "")
+                ),
+                reverse=False
+            )
+            domain_external_feedback = domain_external_feedback[:max(1, args.max_external_feedback)]
 
             domain_candidates = [
                 item for item in candidate_hypotheses
@@ -359,6 +381,12 @@ def main() -> int:
                 "complaintClusters": domain_clusters,
                 "strategicEventClusters": domain_events,
                 "candidateOpportunityHypotheses": domain_candidates,
+                "externalPublicFeedback": domain_external_feedback,
+                "conversationCollectionManifest": {
+                    "window": conversation_manifest.get("window", {}),
+                    "counts": conversation_manifest.get("counts", {}),
+                    "threadCoverage": conversation_manifest.get("threadCoverage", {})
+                },
                 "entityGraphSummary": entity_graph_summary,
                 "limitations": cluster_document.get("limitations", [])
             }
