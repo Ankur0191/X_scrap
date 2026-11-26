@@ -22,6 +22,12 @@ class ComplaintEvidencePolicyTests(unittest.TestCase):
         self.assertTrue(AGGREGATE.has_thread_context({}, {"parentPostId": "123"}))
         self.assertFalse(AGGREGATE.has_thread_context({"isThreadReply": False}, {}))
 
+    def test_customer_voice_signal_labels_are_not_assigned_to_official_posts(self):
+        self.assertTrue(AGGREGATE.is_external_customer_voice_signal("customer_praise", "external_public_account"))
+        self.assertFalse(AGGREGATE.is_external_customer_voice_signal("customer_praise", "competitor_published_content"))
+        self.assertFalse(AGGREGATE.is_external_customer_voice_signal("customer_request", "competitor_published_content"))
+        self.assertTrue(AGGREGATE.is_external_customer_voice_signal("new_service_or_test_capability", "competitor_published_content"))
+
     def test_candidate_complaint_requires_external_thread_and_negative_or_mixed(self):
         self.assertTrue(AGGREGATE.is_candidate_complaint(
             "customer_01", "sgs_sa", True, "negative", ["delayed_test_or_inspection"]
