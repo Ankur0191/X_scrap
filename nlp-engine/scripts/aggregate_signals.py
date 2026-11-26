@@ -53,6 +53,36 @@ def normalised_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.casefold()).strip("_")
 
 
+def is_external_author(author: str, competitor: str) -> bool:
+    author_key = str(author or "").replace("@", "").strip().casefold()
+    competitor_key = str(competitor or "").replace("@", "").strip().casefold()
+    return bool(author_key and author_key not in {"unknown", "none"} and author_key != competitor_key)
+
+
+def has_thread_context(source: dict[str, Any], source_meta: dict[str, Any]) -> bool:
+    fields = ("isThreadReply", "conversationRootId", "conversationRootIds", "parentPostId")
+    return any(bool(source.get(field)) or bool(source_meta.get(field)) for field in fields)
+
+
+def is_candidate_complaint(
+    author: str,
+    competitor: str,
+    thread_context: bool,
+    sentiment: str,
+    complaint_types: list[str]
+) -> bool:
+    usable_complaints = [
+        value for value in complaint_types
+        if normalised_key(value) not in {"", "other", "other_or_unclassified", "unknown", "unclassified"}
+    ]
+    return (
+        is_external_author(author, competitor)
+        and thread_context
+        and str(sentiment or "").casefold() in {"negative", "mixed"}
+        and bool(usable_complaints)
+    )
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
@@ -64,6 +94,11 @@ def main() -> int:
     parser.add_argument("--min-posts", type=int, default=3)
     parser.add_argument("--min-authors", type=int, default=2)
     parser.add_argument("--evidence-limit", type=int, default=20)
+    parser.add_argument(
+        "--include-organization-complaints",
+        action="store_true",
+        help="Diagnostic override: allow competitor-authored posts into complaint clusters (not recommended for gap analysis)."
+    )
     args = parser.parse_args()
 
     def resolve(value: str) -> Path:
@@ -96,6 +131,12 @@ def main() -> int:
     tag_totals: dict[str, Counter[str]] = defaultdict(Counter)
     classified_records = 0
     complaint_records = 0
+    external_feedback_by_id: dict[tuple[str, str], dict[str, Any]] = {}
+    source_role_totals: dict[str, Counter[str]] = defaultdict(Counter)
+    complaint_rows_excluded_official = 0
+    complaint_rows_excluded_non_thread = 0
+    complaint_rows_excluded_nonnegative = 0
+    complaint_rows_excluded_unclassified = 0
 
     for enriched in records:
         source = enriched.get("sourceRecord") or {}
@@ -140,6 +181,9 @@ def main() -> int:
         impact_types = as_labels(classifications.get("impact_type"))
         source_voice_candidates = as_labels(classifications.get("source_voice"))
         journey_stage_candidates = as_labels(classifications.get("journey_stage"))
+        source_role = "external_public_account" if is_external_author(author, competitor) else "competitor_published_content"
+        thread_context = has_thread_context(source, source_meta)
+        source_role_totals[competitor][source_role] += 1
         customer_segment_candidates = as_labels(classifications.get("customer_segment"))
         industry_vertical_candidates = as_labels(classifications.get("industry_vertical"))
 
@@ -166,7 +210,8 @@ def main() -> int:
             "sentiment": sentiment_label,
             "text": text,
             "geographicMentions": geographic,
-            "sourceRole": "external_public_account" if author != competitor else "competitor_published_content",
+            "sourceRole": source_role,
+            "isThreadContext": thread_context,
             "visibleMetrics": visible_metrics,
             "engagementHistory": engagement_history,
             "sourceVoiceCandidates": source_voice_candidates,
@@ -175,15 +220,61 @@ def main() -> int:
             "industryVerticalCandidates": industry_vertical_candidates
         }
 
-        for complaint_type in complaint_types:
-            for service in service_categories or ["unclassified_service"]:
-                clusters[(competitor, normalised_key(complaint_type), normalised_key(service))].append({
-                    **evidence,
-                    "complaintType": complaint_type,
-                    "serviceCategory": service,
-                    "impactTypes": impact_types
-                })
-                complaint_records += 1
+        if source_role == "external_public_account":
+            feedback_key = (competitor, post_id)
+            external_feedback_by_id[feedback_key] = {
+                "competitor": competitor,
+                "sourcePostId": post_id,
+                "sourceUrl": url,
+                "authorUsername": author,
+                "createdAt": created_at,
+                "month": month,
+                "quote": text[:1200],
+                "sentiment": sentiment_label,
+                "sourceVoiceCandidates": source_voice_candidates,
+                "signalTypeCandidates": signal_types,
+                "complaintTypeCandidates": complaint_types,
+                "serviceCategories": service_categories,
+                "impactTypeCandidates": impact_types,
+                "isThreadContext": thread_context,
+                "isThreadReply": bool(source.get("isThreadReply") or source_meta.get("isThreadReply")),
+                "conversationRootId": source.get("conversationRootId") or source_meta.get("conversationRootId"),
+                "parentPostId": source.get("parentPostId") or source_meta.get("parentPostId"),
+                "visibleMetrics": visible_metrics,
+                "assessment": "external public account; not automatically a customer or complainant"
+            }
+
+        if complaint_types:
+            is_complaint_source = (
+                args.include_organization_complaints
+                or is_candidate_complaint(author, competitor, thread_context, sentiment_label, complaint_types)
+            )
+            if not is_external_author(author, competitor) and not args.include_organization_complaints:
+                complaint_rows_excluded_official += 1
+            elif not thread_context and not args.include_organization_complaints:
+                complaint_rows_excluded_non_thread += 1
+            elif sentiment_label not in {"negative", "mixed"} and not args.include_organization_complaints:
+                complaint_rows_excluded_nonnegative += 1
+            elif not any(
+                normalised_key(value) not in {"", "other", "other_or_unclassified", "unknown", "unclassified"}
+                for value in complaint_types
+            ) and not args.include_organization_complaints:
+                complaint_rows_excluded_unclassified += 1
+
+            if is_complaint_source:
+                valid_complaint_types = complaint_types if args.include_organization_complaints else [
+                    value for value in complaint_types
+                    if normalised_key(value) not in {"", "other", "other_or_unclassified", "unknown", "unclassified"}
+                ]
+                for complaint_type in valid_complaint_types:
+                    for service in service_categories or ["unclassified_service"]:
+                        clusters[(competitor, normalised_key(complaint_type), normalised_key(service))].append({
+                            **evidence,
+                            "complaintType": complaint_type,
+                            "serviceCategory": service,
+                            "impactTypes": impact_types
+                        })
+                        complaint_records += 1
 
         for signal_type in signal_types:
             if signal_type in {"customer_complaint", "other"}:
@@ -229,12 +320,15 @@ def main() -> int:
             "monthlyVolume": [{"month": month, "count": count} for month, count in sorted(months.items())],
             "geographicMentions": [{"name": name, "mentionCount": count, "evidenceBasis": "text_mention_only"} for name, count in location_counts.most_common(20)],
             "evidenceIds": evidence_ids,
+            "sourceRoleCounts": dict(Counter(item["sourceRole"] for item in items)),
             "evidence": [
                 {
                     "sourcePostId": item["sourcePostId"],
                     "sourceUrl": item["sourceUrl"],
                     "createdAt": item["createdAt"],
                     "authorUsername": item["authorUsername"],
+                    "sentiment": item["sentiment"],
+                    "sourceVoiceCandidates": item.get("sourceVoiceCandidates", []),
                     "quote": item["text"][:1200],
                     "visibleMetrics": item.get("visibleMetrics", {}),
                     "engagementHistory": item.get("engagementHistory", {}),
@@ -270,6 +364,11 @@ def main() -> int:
     event_output = []
     for (competitor, event_key), items in sorted(event_signals.items()):
         authors = {item["authorUsername"] for item in items if item["authorUsername"] not in {"", "unknown"}}
+        external_authors = {
+            item["authorUsername"] for item in items
+            if item["sourceRole"] == "external_public_account" and item["authorUsername"] not in {"", "unknown"}
+        }
+        role_counts = Counter(item["sourceRole"] for item in items)
         months = Counter(item["month"] for item in items)
         event_output.append({
             "eventClusterId": f"{competitor}:event:{event_key}",
@@ -277,6 +376,10 @@ def main() -> int:
             "signalType": items[0]["signalType"],
             "volume": len(items),
             "uniqueAuthors": len(authors),
+            "uniqueExternalAuthors": len(external_authors),
+            "organizationPublishedRecords": role_counts.get("competitor_published_content", 0),
+            "externalPublicRecords": role_counts.get("external_public_account", 0),
+            "sourceRoleCounts": dict(role_counts),
             "monthlyVolume": [{"month": month, "count": count} for month, count in sorted(months.items())],
             "serviceCategories": sorted({label for item in items for label in item.get("serviceCategories", [])}),
             "impactCategoriesMentioned": sorted({label for item in items for label in item.get("impactTypes", [])}),
@@ -299,6 +402,11 @@ def main() -> int:
             ]
         })
 
+    external_feedback = sorted(
+        external_feedback_by_id.values(),
+        key=lambda item: (str(item.get("createdAt") or ""), item["competitor"], item["sourcePostId"])
+    )
+    external_thread_feedback = [item for item in external_feedback if item["isThreadContext"]]
     cluster_document = {
         "schemaVersion": "1.0.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
@@ -307,16 +415,39 @@ def main() -> int:
             "inputRecords": len(records),
             "malformedLines": len(malformed),
             "classifiedRecords": classified_records,
+            "externalPublicRecords": len(external_feedback),
+            "externalPublicThreadRecords": len(external_thread_feedback),
+            "organizationPublishedRecords": sum(
+                values.get("competitor_published_content", 0) for values in source_role_totals.values()
+            ),
             "complaintClassificationRows": complaint_records,
+            "complaintRowsExcludedOfficial": complaint_rows_excluded_official,
+            "complaintRowsExcludedNonThread": complaint_rows_excluded_non_thread,
+            "complaintRowsExcludedNonnegative": complaint_rows_excluded_nonnegative,
+            "complaintRowsExcludedUnclassified": complaint_rows_excluded_unclassified,
             "complaintClusters": len(cluster_output),
             "eventClusters": len(event_output),
             "candidateOpportunityHypotheses": len(candidate_gaps)
         },
+        "complaintPolicy": {
+            "default": "external_public_thread_records_only",
+            "requirements": [
+                "author differs from the tracked competitor account",
+                "record has explicit thread context",
+                "sentiment classification is negative or mixed",
+                "complaint type is not other/unclassified"
+            ],
+            "overrideEnabled": bool(args.include_organization_complaints),
+            "warning": "External public accounts are not automatically customers. Every candidate requires manual source-thread review."
+        },
         "competitorTotals": dict(competitor_totals),
         "clusters": cluster_output,
+        "externalPublicFeedback": external_feedback,
         "events": event_output,
         "candidateOpportunityHypotheses": candidate_gaps,
         "globalDiagnostics": {
+            "sourceRolesByCompetitor": {key: dict(value) for key, value in source_role_totals.items()},
+            "externalFeedbackByCompetitor": dict(Counter(item["competitor"] for item in external_feedback)),
             "sentimentByCompetitor": {key: dict(value) for key, value in sentiment_totals.items()},
             "topHashtagsByCompetitor": {
                 key: [{"tag": tag, "count": count} for tag, count in counter.most_common(50)]
@@ -329,7 +460,9 @@ def main() -> int:
         },
         "limitations": [
             "GLiNER labels are candidate classifications and require evaluation against human-reviewed records.",
-            "One post can contribute to more than one complaint/service cluster.",
+            "Complaint clusters are restricted by default to negative or mixed external public thread records; external authors are not automatically customers.",
+            "Competitor-authored promotional, educational and announcement posts are excluded from complaint clusters by default but remain eligible for strategic event clusters.",
+            "One external post can contribute to more than one complaint/service cluster.",
             "Geographic text mentions are not complainant regions.",
             "Recurring complaint clusters are opportunity hypotheses, not proof of competitor failure.",
             "Root causes, verified impact and final actionables require a separate evidence-grounded reasoning and review stage."
@@ -353,6 +486,7 @@ def main() -> int:
             "conversationCoverage": "use conversation-manifest.json; never infer complete thread coverage from this file"
         },
         "competitorTotals": dict(competitor_totals),
+        "externalPublicFeedback": external_feedback,
         "complaintPatternCandidates": [
             {
                 "candidateId": item["clusterId"],
@@ -377,7 +511,8 @@ def main() -> int:
         ],
         "candidateOpportunities": candidate_gaps,
         "recommendedAnalystChecks": [
-            "Validate the highest-volume complaint clusters against their original conversation threads.",
+            "Review each external public reply in context; an external account is not automatically a customer or complainant.",
+            "Validate the highest-volume negative or mixed complaint candidates against their original conversation threads.",
             "Check official responses and whether reported complaints were resolved.",
             "Confirm geographic context from explicit source statements, not author/profile assumptions.",
             "Compare recurring issues with competitor service pages, official launches and independent sources.",
@@ -391,6 +526,11 @@ def main() -> int:
 
     print(json.dumps({
         "inputRecords": len(records),
+        "externalPublicRecords": len(external_feedback),
+        "complaintClassificationRows": complaint_records,
+        "complaintRowsExcludedOfficial": complaint_rows_excluded_official,
+        "complaintRowsExcludedNonThread": complaint_rows_excluded_non_thread,
+        "complaintRowsExcludedNonnegative": complaint_rows_excluded_nonnegative,
         "complaintClusters": len(cluster_output),
         "eventClusters": len(event_output),
         "candidateOpportunityHypotheses": len(candidate_gaps),
