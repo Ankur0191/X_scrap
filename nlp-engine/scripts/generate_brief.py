@@ -383,6 +383,8 @@ def main() -> int:
                     "byPostType": window_manifest.get("activeDataset", {}).get("byPostType", {}),
                     "topHashtags": window_manifest.get("activeDataset", {}).get("topHashtags", [])
                 },
+                "complaintPolicy": cluster_document.get("complaintPolicy", {}),
+                "signalAggregationCounts": cluster_document.get("counts", {}),
                 "complaintClusters": domain_clusters,
                 "strategicEventClusters": domain_events,
                 "candidateOpportunityHypotheses": domain_candidates,
