@@ -184,7 +184,38 @@ The local cycle runner is `scripts/run-cycle.ps1`. To schedule it, open Windows 
 
 Keep the PC awake and the user session active during collection. The log is written to `data/output/scheduled-monitor.log`. The suggested 60-minute interval is configurable; the actual interval should follow the written X authorisation.
 
-## 7. Audit data
+## 7. Sync raw TIC X records to Supabase
+
+The TIC source archive is uploaded without AI rewriting to the existing TICRivalmap project. The sync reuses the existing `social_profiles`, `social_posts` and `social_collection_runs` tables. It stores the original collected record in `social_posts.source_payload`, searchable post/thread fields in dedicated columns, and visible metric history in `social_post_engagement_snapshots`.
+
+### One-time local setup
+
+Copy `.env.example` to `.env.local` and set the Supabase service-role key locally. The project URL and organization ID are pre-filled for the TICRivalmap project. Never commit `.env.local`, expose the key in browser code, or use a publishable/anon key for ingestion.
+
+```powershell
+Copy-Item .env.example .env.local
+# Edit .env.local and set SUPABASE_SERVICE_ROLE_KEY
+```
+
+### Validate, then sync
+
+The default import is the six-month TIC conversation archive (posts plus the public replies collected into it), with matching engagement observations from the shared snapshot history. The importer checks every tracked handle against the TIC config and the Supabase `social_profiles` registry before writing. Unmapped TIC handles stop the run rather than being silently dropped.
+
+```powershell
+# Preview source counts and registry mapping; this makes no database writes.
+npm run sync:supabase:tic -- --dry-run
+
+# Idempotently upsert posts and their engagement snapshots.
+npm run sync:supabase:tic
+```
+
+The sync is safe to rerun: posts use the existing unique key `organization_id + competitor_id + platform + external_id`; engagement snapshots use `organization_id + competitor_id + platform + external_id + snapshot_at`. Existing rows are merged, not deleted. Each sync creates a `social_collection_runs` audit row and records success/failure. It preserves exact author handles, URLs, timestamps, text, post type, reply/root/parent IDs, media references, hashtags, mentions, relationships, visible metrics and the original JSON payload.
+
+Engagement values are observations captured from the visible X interface, not authoritative lifetime totals. Media bytes are not downloaded; the visible media references and metadata remain attached to each source record. No GLiNER or Granite output is required for this import.
+
+The importer uses Node 20's built-in `fetch`; no extra npm dependency is needed. To import a different archive, pass `--input` and optionally `--snapshots`. Use `--no-snapshots` to import posts only.
+
+## 8. Audit data
 
 ```powershell
 npm run audit:data
@@ -198,7 +229,7 @@ npm run audit:data -- data/output/conversation-365d.jsonl
 
 The recurring cycle audits the merged conversation file.
 
-## 8. Local GLiNER2.5 extraction
+## 9. Local GLiNER2.5 extraction
 
 The first NLP layer uses the multilingual `fastino/gliner2.5-multi-v1` checkpoint. It extracts entity spans, topic/signal labels, complaint categories, service categories, impact themes and candidate relations. See [nlp-engine/README.md](nlp-engine/README.md).
 
