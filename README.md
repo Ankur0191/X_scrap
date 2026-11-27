@@ -16,7 +16,7 @@ A local-first collection and evidence extraction pipeline for TIC and Aspire Lif
 | SGS | `@SGS_SA` | Global; SGS newsroom |
 | TÜV Rheinland | `@tuvcom_presse` | Corporate press |
 | TÜV Rheinland | `@tuvcom_products` | Product safety |
-| TÜV SÜD | `@TUVSUD` | Global; single account to track |
+| TÜV SÜD | `@TUVSUD` | Global; protected/access-limited; collection disabled |
 
 Kiwa's `@kiwa_global` is retained in the configuration as a disabled candidate because only a third-party company directory was found; no first-party Kiwa confirmation was located. Its posts are not collected. The previous DEKRA South Africa account is regional and is not substituted for the global `@DEKRA_Konzern` profile.
 
@@ -56,10 +56,9 @@ npm run backfill:intertek:6m
 npm run backfill:mistras:6m
 npm run backfill:tuv-rheinland-press:6m
 npm run backfill:tuv-rheinland-products:6m
-npm run backfill:tuvsud:6m
 ```
 
-Kiwa is deliberately excluded while its X handle remains unverified. TÜV SÜD is tracked through the single `@TUVSUD` account; the former `@tuvsudSASIA` entry is not treated as a separate target. TÜV SÜD remains marked `profile_exists` pending a fresh first-party cross-link. MISTRAS is enabled as a profile/domain match but remains marked `profile_exists`, not `official_link_verified`.
+Kiwa is deliberately excluded while its X handle remains unverified. TÜV SÜD is represented by the single `@TUVSUD` account; the former `@tuvsudSASIA` entry is not treated as a separate target. `@TUVSUD` is protected and its posts are visible only to approved followers, so it is marked `access_limited` and disabled from collection until authorized follower access is granted. MISTRAS is enabled as a profile/domain match but remains marked `profile_exists`, not `official_link_verified`.
 
 The original archive is retained; this six-month scan does not delete older rows or change the default 365-day analysis window. To build a separate TIC-only six-month analysis file after collection, run:
 
