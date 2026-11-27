@@ -106,6 +106,7 @@ export function buildSocialPostRows(records, options) {
   const byKey = new Map();
   const unmatchedProfiles = new Set();
   let filteredOut = 0;
+  let unmatchedProfileRows = 0;
 
   for (const input of records) {
     const record = unwrapSource(input);
@@ -118,6 +119,7 @@ export function buildSocialPostRows(records, options) {
     const profile = profilesByHandle.get(trackedHandle);
     if (!profile?.competitor_id) {
       unmatchedProfiles.add(trackedHandle);
+      unmatchedProfileRows += 1;
       continue;
     }
 
@@ -223,7 +225,7 @@ export function buildSocialPostRows(records, options) {
     rows: [...byKey.values()],
     unmatchedProfiles: [...unmatchedProfiles].sort(),
     filteredOut,
-    duplicateRowsMerged: records.length - filteredOut - unmatchedProfiles.size - byKey.size
+    duplicateRowsMerged: records.length - filteredOut - unmatchedProfileRows - byKey.size
   };
 }
 
@@ -274,9 +276,9 @@ export function buildEngagementSnapshotRows(snapshots, options) {
 }
 
 function loadEnv(rootDir) {
-  parseEnvFile(path.join(rootDir, ".env"));
   parseEnvFile(path.join(rootDir, ".env.local"));
   parseEnvFile(path.join(rootDir, ".env.development.local"));
+  parseEnvFile(path.join(rootDir, ".env"));
 }
 
 function parseArgs(argv) {
@@ -361,12 +363,12 @@ async function main() {
   }
 
   const baseUrl = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-  const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const organizationId = process.env.SUPABASE_ORGANIZATION_ID || "";
   const expectedRef = process.env.SUPABASE_EXPECTED_PROJECT_REF || EXPECTED_PROJECT_REF;
 
   if (!baseUrl || !apiKey || !organizationId) {
-    throw new Error("Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY), and SUPABASE_ORGANIZATION_ID in .env.local.");
+    throw new Error("Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_ORGANIZATION_ID in .env.local.");
   }
   const host = new URL(baseUrl).hostname;
   if (!host.startsWith(expectedRef + ".")) {
