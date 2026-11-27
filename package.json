@@ -43,8 +43,7 @@
     "collect:threads:tic:6m": "node src/collector/threads.js --domain tic --window-days 184",
     "build:conversations:tic:6m": "node src/intelligence/build-conversation.js --domain tic --window-days 184",
     "sync:supabase:tic": "node scripts/sync-x-to-supabase.mjs --input data/output/conversations-tic-184d.jsonl --snapshots data/output/engagement-snapshots.jsonl",
-    "refresh:tic:latest": "node src/collector/run.js --domain tic && node src/intelligence/build-window.js --domain tic --days 184",
-    "backfill:tuvsud:6m": "node src/collector/run.js --account TUVSUD --backfill --window-days 184"
+    "refresh:tic:latest": "node src/collector/run.js --domain tic && node src/intelligence/build-window.js --domain tic --days 184"
   },
   "dependencies": {
     "playwright": "^1.56.0"
