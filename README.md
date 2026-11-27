@@ -190,16 +190,28 @@ The TIC source archive is uploaded without AI rewriting to the existing TICRival
 
 ### One-time local setup
 
-Copy `.env.example` to `.env.local` and set the Supabase service-role key locally. The project URL and organization ID are pre-filled for the TICRivalmap project. Never commit `.env.local`, expose the key in browser code, or use a publishable/anon key for ingestion.
+Create `.env.local` from the example only if you do not already have one, then set the Supabase service-role key locally. The project URL and organization ID are pre-filled for TICRivalmap. Never commit `.env.local`, expose the key in browser code, or use a publishable/anon key for ingestion.
 
 ```powershell
-Copy-Item .env.example .env.local
+if (!(Test-Path .env.local)) { Copy-Item .env.example .env.local }
 # Edit .env.local and set SUPABASE_SERVICE_ROLE_KEY
 ```
 
 ### Validate, then sync
 
 The default import is the six-month TIC conversation archive (posts plus the public replies collected into it), with matching engagement observations from the shared snapshot history. The importer checks every tracked handle against the TIC config and the Supabase `social_profiles` registry before writing. Unmapped TIC handles stop the run rather than being silently dropped.
+
+The existing six-month archive was last built from the 23 November 2026 collection window. To include newer timeline posts before the upload, refresh the current TIC profiles and rebuild that window first. This is incremental (not a six-month rescan):
+
+```powershell
+npm run refresh:tic:latest
+npm run build:thread-queue:tic:6m
+# Collect a bounded batch of newly queued public threads; repeat as needed.
+npm run collect:threads:tic:6m -- --limit 10
+npm run build:conversations:tic:6m
+```
+
+Then run the sync. You can omit the refresh/thread commands when you intentionally want to upload the archive exactly as it currently exists.
 
 ```powershell
 # Preview source counts and registry mapping; this makes no database writes.
