@@ -223,7 +223,7 @@
     {
       "username": "TUVSUD",
       "displayName": "TÜV SÜD",
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "profileUrl": "https://x.com/TUVSUD",
       "tags": [
@@ -234,9 +234,9 @@
       ],
       "domainId": "tic",
       "accountScope": "global",
-      "verificationStatus": "profile_exists",
+      "verificationStatus": "access_limited",
       "verificationSourceUrl": "https://x.com/TUVSUD",
-      "verificationNotes": "Operator correction: track the single TÜV SÜD X account @TUVSUD; do not treat @tuvsudSASIA as a separate regional target. Keep as profile_exists pending a fresh first-party cross-link."
+      "verificationNotes": "Protected X account; posts are visible only to approved followers. Operator reports approximately 10 followers. Disabled from collection until authorized follower access is granted; do not attempt to bypass the access restriction."
     },
     {
       "username": "kiwa_global",
